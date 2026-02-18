@@ -4,6 +4,7 @@
   "packageManager": "pnpm@10.30.0",
   "scripts": {
     "dev:server": "pnpm --filter @flowmvp/server dev",
+    "dev:dashboard": "pnpm --filter @flowmvp/dashboard dev",
     "build": "turbo run build",
     "build:shared": "pnpm --filter @flowmvp/shared build",
     "build:sdk": "pnpm --filter @flowmvp/sdk build",

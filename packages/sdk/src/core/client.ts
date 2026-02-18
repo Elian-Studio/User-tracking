@@ -7,6 +7,7 @@ import { initExitTracker, startExitTracking, stopExitTracking } from "../tracker
 export interface FlowInitOptions {
   serviceKey: string;
   serverUrl: string;
+  env?: "dev" | "staging" | "prod";
   userId?: string;
   autoTrackPageView?: boolean;
   autoTrackScroll?: boolean;
@@ -20,13 +21,16 @@ export const Flow = {
     if (initialized) return;
 
     const {
-      serviceKey,
+      serviceKey: rawKey,
       serverUrl,
+      env,
       userId,
       autoTrackPageView = true,
       autoTrackScroll = true,
       autoTrackExit = true,
     } = options;
+
+    const serviceKey = env && env !== "prod" ? `${rawKey}-${env}` : rawKey;
 
     setServerUrl(serverUrl);
     initSession(serviceKey, userId);
