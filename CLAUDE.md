@@ -49,3 +49,7 @@ Copy `packages/server/.env.example` to `packages/server/.env`.
 ## Database
 
 PostgreSQL with 3 tables: `services`, `sessions` (UUID PK), `events` (BIGSERIAL PK with CHECK constraint on type). Migration SQL at `packages/server/src/db/migrations/001_init.sql`. Multi-tenant by `service_key` — each React project registers with a unique key.
+
+## Communication
+
+- **모든 응답은 한국어로 작성합니다.** 코드, 커밋 메시지, 변수명 등 코드 자체는 영어를 유지하되, 사용자와의 대화 및 설명은 한국어로 합니다.
