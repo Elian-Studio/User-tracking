@@ -28,6 +28,7 @@ Turborepo 모노레포의 빌드 체인과 타입 안전성을 검증합니다:
 | `packages/shared/src/**/*.ts` | Foundation 타입 및 상수 |
 | `packages/sdk/src/**/*.ts` | 브라우저 SDK 클라이언트 |
 | `packages/server/src/**/*.ts` | Fastify API 서버 |
+| `packages/dashboard/src/**/*.tsx` | 대시보드 React 앱 |
 | `packages/*/tsconfig.json` | 각 패키지 TypeScript 설정 |
 | `turbo.json` | Turborepo 파이프라인 설정 |
 

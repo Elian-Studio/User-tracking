@@ -31,6 +31,7 @@ argument-hint: "[선택사항: 특정 verify 스킬 이름]"
 |---|------|------|
 | 1 | verify-build | Turborepo 빌드 및 타입체크 검증 |
 | 2 | verify-imports | ES 모듈 임포트 규칙 검증 (.js 확장자, @flowmvp/ 워크스페이스) |
+| 3 | verify-requirements | 구현 기능의 요구사항 만족도 검증 (API, 대시보드, SDK, 설정) |
 
 ## 워크플로우
 
