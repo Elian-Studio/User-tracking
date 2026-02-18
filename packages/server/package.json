@@ -1,0 +1,25 @@
+{
+  "name": "@flowmvp/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@flowmvp/shared": "workspace:*",
+    "fastify": "^5",
+    "@fastify/cors": "^10",
+    "postgres": "^3"
+  },
+  "devDependencies": {
+    "typescript": "^5.7",
+    "tsx": "^4",
+    "@types/node": "^22"
+  }
+}

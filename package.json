@@ -1,0 +1,19 @@
+{
+  "name": "flowmvp",
+  "private": true,
+  "packageManager": "pnpm@10.30.0",
+  "scripts": {
+    "dev:server": "pnpm --filter @flowmvp/server dev",
+    "build": "turbo run build",
+    "build:shared": "pnpm --filter @flowmvp/shared build",
+    "build:sdk": "pnpm --filter @flowmvp/sdk build",
+    "build:server": "pnpm --filter @flowmvp/server build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean"
+  },
+  "devDependencies": {
+    "turbo": "^2",
+    "typescript": "^5.7"
+  }
+}
