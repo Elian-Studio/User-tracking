@@ -6,6 +6,7 @@ interface Props {
   startDate: string;
   endDate: string;
   onSelectPath: (path: string) => void;
+  onHeatmapPath: (path: string) => void;
 }
 
 interface Page {
@@ -19,6 +20,7 @@ export function PagesTable({
   startDate,
   endDate,
   onSelectPath,
+  onHeatmapPath,
 }: Props) {
   const [pages, setPages] = useState<Page[]>([]);
 
@@ -54,6 +56,12 @@ export function PagesTable({
                     onClick={() => onSelectPath(p.path)}
                   >
                     분석
+                  </button>
+                  <button
+                    className="btn-sm btn-heatmap"
+                    onClick={() => onHeatmapPath(p.path)}
+                  >
+                    히트맵
                   </button>
                 </td>
               </tr>

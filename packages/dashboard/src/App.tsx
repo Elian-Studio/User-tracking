@@ -3,6 +3,7 @@ import { OverviewCards } from "./components/OverviewCards";
 import { TrendChart } from "./components/TrendChart";
 import { PagesTable } from "./components/PagesTable";
 import { ExitScrollChart } from "./components/ExitScrollChart";
+import { ScrollHeatmap } from "./components/ScrollHeatmap";
 
 type Environment = "dev" | "staging" | "prod";
 
@@ -29,20 +30,25 @@ function monthAgoISO() {
 }
 
 export function App() {
-  const [serviceKey, setServiceKey] = useState("");
+  const [serviceKey, setServiceKey] = useState("test-app");
+  const [siteUrl, setSiteUrl] = useState("https://example.com");
   const [startDate, setStartDate] = useState(monthAgoISO());
   const [endDate, setEndDate] = useState(todayISO());
   const [appliedKey, setAppliedKey] = useState("");
+  const [appliedSiteUrl, setAppliedSiteUrl] = useState("");
   const [appliedStart, setAppliedStart] = useState("");
   const [appliedEnd, setAppliedEnd] = useState("");
   const [selectedPath, setSelectedPath] = useState("");
+  const [heatmapPath, setHeatmapPath] = useState("");
 
   const handleApply = () => {
     if (!serviceKey) return;
     setAppliedKey(serviceKey);
+    setAppliedSiteUrl(siteUrl);
     setAppliedStart(startDate + "T00:00:00Z");
     setAppliedEnd(endDate + "T23:59:59Z");
     setSelectedPath("");
+    setHeatmapPath("");
   };
 
   return (
@@ -61,6 +67,13 @@ export function App() {
           placeholder="Service Key"
           value={serviceKey}
           onChange={(e) => setServiceKey(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="사이트 URL (예: https://example.com)"
+          className="input-site-url"
+          value={siteUrl}
+          onChange={(e) => setSiteUrl(e.target.value)}
         />
         <input
           type="date"
@@ -92,6 +105,13 @@ export function App() {
             startDate={appliedStart}
             endDate={appliedEnd}
             onSelectPath={setSelectedPath}
+            onHeatmapPath={(path) => {
+              if (!appliedSiteUrl) {
+                alert("히트맵을 보려면 사이트 URL을 입력하세요.");
+                return;
+              }
+              setHeatmapPath(path);
+            }}
           />
           {selectedPath && (
             <ExitScrollChart
@@ -102,6 +122,17 @@ export function App() {
             />
           )}
         </>
+      )}
+
+      {heatmapPath && appliedSiteUrl && (
+        <ScrollHeatmap
+          serviceKey={appliedKey}
+          path={heatmapPath}
+          siteUrl={appliedSiteUrl}
+          startDate={appliedStart}
+          endDate={appliedEnd}
+          onClose={() => setHeatmapPath("")}
+        />
       )}
     </div>
   );
