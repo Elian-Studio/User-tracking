@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { OverviewCards } from "./components/OverviewCards";
 import { TrendChart } from "./components/TrendChart";
+import { AcquisitionTable } from "./components/AcquisitionTable";
 import { PagesTable } from "./components/PagesTable";
 import { ExitScrollChart } from "./components/ExitScrollChart";
 import { ScrollHeatmap } from "./components/ScrollHeatmap";
@@ -96,6 +97,11 @@ export function App() {
             endDate={appliedEnd}
           />
           <TrendChart
+            serviceKey={appliedKey}
+            startDate={appliedStart}
+            endDate={appliedEnd}
+          />
+          <AcquisitionTable
             serviceKey={appliedKey}
             startDate={appliedStart}
             endDate={appliedEnd}

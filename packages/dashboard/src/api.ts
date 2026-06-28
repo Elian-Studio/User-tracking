@@ -35,8 +35,29 @@ interface ExitScrollData {
   total: number;
 }
 
+interface AcquisitionData {
+  channel: string;
+  sessions: number;
+  percent: number;
+}
+
 function buildParams(params: Record<string, string>) {
   return new URLSearchParams(params).toString();
+}
+
+export async function fetchAcquisition(
+  serviceKey: string,
+  startDate: string,
+  endDate: string,
+): Promise<AcquisitionData[]> {
+  try {
+    const qs = buildParams({ serviceKey, startDate, endDate });
+    const res = await fetch(`/api/metrics/acquisition?${qs}`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchOverview(

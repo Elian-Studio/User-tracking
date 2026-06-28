@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm build:shared && pnpm --filter @flowmvp/dashboard build",
+  "outputDirectory": "packages/dashboard/dist",
+  "functions": {
+    "api/[...path].ts": { "maxDuration": 10 }
+  }
+}
