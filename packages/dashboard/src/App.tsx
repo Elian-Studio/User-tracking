@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { OverviewCards } from "./components/OverviewCards";
 import { TrendChart } from "./components/TrendChart";
 import { AcquisitionTable } from "./components/AcquisitionTable";
 import { PagesTable } from "./components/PagesTable";
 import { ExitScrollChart } from "./components/ExitScrollChart";
 import { ScrollHeatmap } from "./components/ScrollHeatmap";
+import { LoginForm } from "./components/LoginForm";
+import { checkAuth, logout } from "./api";
 
 type Environment = "dev" | "staging" | "prod";
 
@@ -31,6 +33,21 @@ function monthAgoISO() {
 }
 
 export function App() {
+  // null=확인중, false=미인증, true=인증
+  const [authed, setAuthed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    checkAuth().then(setAuthed);
+    const onUnauthorized = () => setAuthed(false);
+    window.addEventListener("flowmvp-unauthorized", onUnauthorized);
+    return () => window.removeEventListener("flowmvp-unauthorized", onUnauthorized);
+  }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    setAuthed(false);
+  };
+
   const [serviceKey, setServiceKey] = useState("test-app");
   const [siteUrl, setSiteUrl] = useState("https://example.com");
   const [startDate, setStartDate] = useState(monthAgoISO());
@@ -52,6 +69,14 @@ export function App() {
     setHeatmapPath("");
   };
 
+  if (authed === null) {
+    return <div className="dashboard"><div className="empty">로딩 중...</div></div>;
+  }
+
+  if (!authed) {
+    return <LoginForm onSuccess={() => setAuthed(true)} />;
+  }
+
   return (
     <div className="dashboard">
       <div className="header-row">
@@ -61,6 +86,7 @@ export function App() {
             {ENV_LABELS[detectEnv(appliedKey)]}
           </span>
         )}
+        <button className="btn-logout" onClick={handleLogout}>로그아웃</button>
       </div>
       <div className="filters">
         <input

@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { getServiceByKey } from "../services/service.service.js";
 import { getUniqueVisitors, getPageViews, getOverallBounceRate, getPageViewsByPath, getBounceRate, getExitScrollDistribution, getVisitorTrend, getAcquisitionChannels, getEventsForExport } from "../services/metrics.service.js";
 import { rowsToCsv } from "../services/csv.js";
+import { requireAuth } from "../auth/middleware.js";
 
 interface MetricsQuery {
   serviceKey: string;
@@ -22,6 +23,9 @@ interface ExportQuery extends MetricsQuery {
 }
 
 export async function metricsRoutes(app: FastifyInstance): Promise<void> {
+  // 이 플러그인(=/api/metrics/*)에만 인증 적용. events/sessions는 별도 플러그인이라 공개 유지.
+  app.addHook("preHandler", requireAuth);
+
   app.get<{ Querystring: MetricsQuery }>("/api/metrics/overview", async (request, reply) => {
     const { serviceKey, startDate, endDate } = request.query;
 

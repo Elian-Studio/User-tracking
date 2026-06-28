@@ -45,6 +45,74 @@ function buildParams(params: Record<string, string>) {
   return new URLSearchParams(params).toString();
 }
 
+const TOKEN_KEY = "flowmvp_token";
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+function clearToken(): void {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+function authHeaders(): HeadersInit {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// 보호된 API 호출 — 토큰 헤더 주입, 401이면 토큰 폐기 후 재로그인 유도
+async function authedFetch(url: string): Promise<Response> {
+  const res = await fetch(url, { headers: authHeaders() });
+  if (res.status === 401) {
+    clearToken();
+    window.dispatchEvent(new Event("flowmvp-unauthorized"));
+  }
+  return res;
+}
+
+export async function login(username: string, password: string): Promise<boolean> {
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) return false;
+    const { token } = await res.json();
+    setToken(token);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function logout(): Promise<void> {
+  try {
+    await fetch("/api/auth/logout", { method: "POST", headers: authHeaders() });
+  } catch {
+    // 무시 — 어차피 로컬 토큰은 제거
+  }
+  clearToken();
+}
+
+export async function checkAuth(): Promise<boolean> {
+  if (!getToken()) return false;
+  try {
+    const res = await fetch("/api/auth/me", { headers: authHeaders() });
+    if (!res.ok) {
+      clearToken();
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function fetchAcquisition(
   serviceKey: string,
   startDate: string,
@@ -52,7 +120,7 @@ export async function fetchAcquisition(
 ): Promise<AcquisitionData[]> {
   try {
     const qs = buildParams({ serviceKey, startDate, endDate });
-    const res = await fetch(`/api/metrics/acquisition?${qs}`);
+    const res = await authedFetch(`/api/metrics/acquisition?${qs}`);
     if (!res.ok) return [];
     return res.json();
   } catch {
@@ -67,7 +135,7 @@ export async function fetchOverview(
 ): Promise<OverviewData | null> {
   try {
     const qs = buildParams({ serviceKey, startDate, endDate });
-    const res = await fetch(`/api/metrics/overview?${qs}`);
+    const res = await authedFetch(`/api/metrics/overview?${qs}`);
     if (!res.ok) return null;
     return res.json();
   } catch {
@@ -83,7 +151,7 @@ export async function fetchTrend(
 ): Promise<TrendData | null> {
   try {
     const qs = buildParams({ serviceKey, startDate, endDate, interval });
-    const res = await fetch(`/api/metrics/trend?${qs}`);
+    const res = await authedFetch(`/api/metrics/trend?${qs}`);
     if (!res.ok) return null;
     return res.json();
   } catch {
@@ -98,7 +166,7 @@ export async function fetchPages(
 ): Promise<PageData[]> {
   try {
     const qs = buildParams({ serviceKey, startDate, endDate });
-    const res = await fetch(`/api/metrics/pages?${qs}`);
+    const res = await authedFetch(`/api/metrics/pages?${qs}`);
     if (!res.ok) return [];
     return res.json();
   } catch {
@@ -114,7 +182,7 @@ export async function fetchExitScroll(
 ): Promise<ExitScrollData | null> {
   try {
     const qs = buildParams({ serviceKey, path, startDate, endDate });
-    const res = await fetch(`/api/metrics/exit-scroll?${qs}`);
+    const res = await authedFetch(`/api/metrics/exit-scroll?${qs}`);
     if (!res.ok) return null;
     return res.json();
   } catch {
