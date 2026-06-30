@@ -41,6 +41,13 @@ interface AcquisitionData {
   percent: number;
 }
 
+interface ServiceItem {
+  id: number;
+  name: string;
+  service_key: string;
+  domain: string | null;
+}
+
 function buildParams(params: Record<string, string>) {
   return new URLSearchParams(params).toString();
 }
@@ -112,6 +119,31 @@ export async function checkAuth(): Promise<boolean> {
     return false;
   }
 }
+
+export async function listServices(): Promise<ServiceItem[]> {
+  try {
+    const res = await authedFetch("/api/services");
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+// 선택한 서비스의 히트맵 기준 도메인 저장.
+export async function saveServiceDomain(serviceKey: string, domain: string): Promise<void> {
+  try {
+    await fetch(`/api/services/${encodeURIComponent(serviceKey)}/domain`, {
+      method: "PUT",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ domain }),
+    });
+  } catch {
+    // 무시 — 도메인 저장 실패가 조회를 막지 않도록
+  }
+}
+
+export type { ServiceItem };
 
 export async function fetchAcquisition(
   serviceKey: string,

@@ -4,6 +4,7 @@ import { eventsRoutes } from "./routes/events.js";
 import { sessionsRoutes } from "./routes/sessions.js";
 import { metricsRoutes } from "./routes/metrics.js";
 import { authRoutes } from "./routes/auth.js";
+import { servicesRoutes } from "./routes/services.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -13,13 +14,14 @@ export async function buildApp() {
 
   await app.register(cors, {
     origin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT"],
   });
 
   await app.register(authRoutes);
   await app.register(eventsRoutes);
   await app.register(sessionsRoutes);
   await app.register(metricsRoutes);
+  await app.register(servicesRoutes);
 
   app.get("/health", async () => ({ status: "ok" }));
 

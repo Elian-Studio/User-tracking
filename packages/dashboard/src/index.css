@@ -159,11 +159,18 @@ body {
   margin-bottom: 24px;
 }
 
-.filters input {
+.filters input,
+.filters .select-service {
   padding: 6px 10px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 0.875rem;
+}
+
+.filters .select-service {
+  background: #fff;
+  cursor: pointer;
+  min-width: 140px;
 }
 
 .filters button {

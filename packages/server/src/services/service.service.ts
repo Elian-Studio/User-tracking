@@ -7,6 +7,20 @@ export async function getServiceByKey(serviceKey: string) {
   return result[0] ?? null;
 }
 
+// 대시보드 서비스 드롭다운용 — 등록된 서비스 전체 목록.
+export async function listServices() {
+  return sql`
+    SELECT id, name, service_key, domain FROM services ORDER BY name
+  `;
+}
+
+// 서비스의 히트맵 기준 도메인 저장(드롭다운 선택 시 사이트 URL 자동 채움용).
+export async function setServiceDomain(serviceKey: string, domain: string | null) {
+  await sql`
+    UPDATE services SET domain = ${domain} WHERE service_key = ${serviceKey}
+  `;
+}
+
 export async function getOrCreateService(serviceKey: string) {
   let service = await getServiceByKey(serviceKey);
 
