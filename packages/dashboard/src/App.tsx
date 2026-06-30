@@ -106,7 +106,7 @@ export function App() {
   return (
     <div className="dashboard">
       <div className="header-row">
-        <h1>FlowMVP Analytics</h1>
+        <h1>사용자 분석</h1>
         {appliedKey && (
           <span className={`env-badge env-${detectEnv(appliedKey)}`}>
             {ENV_LABELS[detectEnv(appliedKey)]}

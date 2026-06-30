@@ -29,7 +29,7 @@ export function LoginForm({ onSuccess }: Props) {
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={handleSubmit}>
-        <h1>FlowMVP Analytics</h1>
+        <h1>사용자 분석</h1>
         <p className="login-sub">로그인이 필요합니다</p>
 
         <input
