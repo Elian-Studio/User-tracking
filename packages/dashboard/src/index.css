@@ -531,7 +531,8 @@ body {
 }
 
 .input-site-url {
-  min-width: 240px;
+  flex: 1;
+  min-width: 160px;
 }
 
 /* ── Heatmap modal ── */
