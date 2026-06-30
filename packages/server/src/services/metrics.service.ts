@@ -1,6 +1,17 @@
 import { sql } from "../db/client.js";
 import { classifyChannel } from "./channel.js";
 
+// 실시간 — 최근 5분 내 이벤트가 있는 고유 세션 수("지금 접속 중").
+export async function getActiveSessions(serviceId: number) {
+  const result = await sql`
+    SELECT COUNT(DISTINCT session_id) AS active
+    FROM events
+    WHERE service_id = ${serviceId}
+      AND created_at >= NOW() - INTERVAL '5 minutes'
+  `;
+  return Number(result[0].active);
+}
+
 export async function getUniqueVisitors(serviceId: number, startDate: string, endDate: string) {
   const result = await sql`
     SELECT COUNT(DISTINCT session_id) as uv

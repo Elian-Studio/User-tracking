@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { OverviewCards } from "./components/OverviewCards";
+import { RealtimeBadge } from "./components/RealtimeBadge";
+import { OnboardingCard } from "./components/OnboardingCard";
 import { TrendChart } from "./components/TrendChart";
 import { AcquisitionTable } from "./components/AcquisitionTable";
 import { PagesTable } from "./components/PagesTable";
@@ -72,6 +74,7 @@ export function App() {
   const [appliedEnd, setAppliedEnd] = useState("");
   const [selectedPath, setSelectedPath] = useState("");
   const [heatmapPath, setHeatmapPath] = useState("");
+  const [hasData, setHasData] = useState(true);
 
   // 조회 실행 — applied* 갱신(컴포넌트들이 이걸 보고 fetch)
   const applyFilters = (key: string, url: string, start: string, end: string) => {
@@ -81,6 +84,7 @@ export function App() {
     setAppliedEnd(end + "T23:59:59Z");
     setSelectedPath("");
     setHeatmapPath("");
+    setHasData(true);
   };
 
   // 인증되면 서비스 목록 로드 → 첫 서비스 자동 선택 + 자동 조회(빈 화면 제거)
@@ -151,6 +155,7 @@ export function App() {
             {ENV_LABELS[detectEnv(appliedKey)]}
           </span>
         )}
+        {appliedKey && <RealtimeBadge serviceKey={appliedKey} />}
         <button className="btn-logout" onClick={handleLogout}>로그아웃</button>
       </div>
       <div className="filters">
@@ -207,7 +212,9 @@ export function App() {
             serviceKey={appliedKey}
             startDate={appliedStart}
             endDate={appliedEnd}
+            onLoaded={setHasData}
           />
+          {!hasData && <OnboardingCard serviceKey={appliedKey} />}
           <TrendChart
             serviceKey={appliedKey}
             startDate={appliedStart}

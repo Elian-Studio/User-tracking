@@ -160,6 +160,17 @@ export async function fetchAcquisition(
   }
 }
 
+export async function fetchRealtime(serviceKey: string): Promise<number> {
+  try {
+    const res = await authedFetch(`/api/metrics/realtime?${buildParams({ serviceKey })}`);
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return data.active ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 export async function fetchOverview(
   serviceKey: string,
   startDate: string,
