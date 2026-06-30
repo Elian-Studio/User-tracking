@@ -6,7 +6,7 @@ import { PagesTable } from "./components/PagesTable";
 import { ExitScrollChart } from "./components/ExitScrollChart";
 import { ScrollHeatmap } from "./components/ScrollHeatmap";
 import { LoginForm } from "./components/LoginForm";
-import { checkAuth, logout } from "./api";
+import { checkAuth, logout, listServices, saveServiceDomain, type ServiceItem } from "./api";
 
 type Environment = "dev" | "staging" | "prod";
 
@@ -48,8 +48,27 @@ export function App() {
     setAuthed(false);
   };
 
-  const [serviceKey, setServiceKey] = useState("test-app");
-  const [siteUrl, setSiteUrl] = useState("https://example.com");
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [serviceKey, setServiceKey] = useState("");
+  const [siteUrl, setSiteUrl] = useState("");
+
+  // 인증되면 서비스 목록 로드 → 드롭다운 채우고 첫 서비스 자동 선택(도메인 자동 채움)
+  useEffect(() => {
+    if (authed !== true) return;
+    listServices().then((list) => {
+      setServices(list);
+      if (list.length > 0) {
+        setServiceKey(list[0].service_key);
+        setSiteUrl(list[0].domain ?? "");
+      }
+    });
+  }, [authed]);
+
+  const handleSelectService = (key: string) => {
+    setServiceKey(key);
+    const svc = services.find((s) => s.service_key === key);
+    setSiteUrl(svc?.domain ?? "");
+  };
   const [startDate, setStartDate] = useState(monthAgoISO());
   const [endDate, setEndDate] = useState(todayISO());
   const [appliedKey, setAppliedKey] = useState("");
@@ -61,6 +80,13 @@ export function App() {
 
   const handleApply = () => {
     if (!serviceKey) return;
+    // 입력한 사이트 URL을 해당 서비스 도메인으로 저장 → 다음에 선택 시 자동 채움
+    if (siteUrl) {
+      saveServiceDomain(serviceKey, siteUrl);
+      setServices((prev) =>
+        prev.map((s) => (s.service_key === serviceKey ? { ...s, domain: siteUrl } : s)),
+      );
+    }
     setAppliedKey(serviceKey);
     setAppliedSiteUrl(siteUrl);
     setAppliedStart(startDate + "T00:00:00Z");
@@ -89,12 +115,18 @@ export function App() {
         <button className="btn-logout" onClick={handleLogout}>로그아웃</button>
       </div>
       <div className="filters">
-        <input
-          type="text"
-          placeholder="Service Key"
+        <select
+          className="select-service"
           value={serviceKey}
-          onChange={(e) => setServiceKey(e.target.value)}
-        />
+          onChange={(e) => handleSelectService(e.target.value)}
+        >
+          {services.length === 0 && <option value="">등록된 서비스 없음</option>}
+          {services.map((s) => (
+            <option key={s.service_key} value={s.service_key}>
+              {s.service_key}
+            </option>
+          ))}
+        </select>
         <input
           type="text"
           placeholder="사이트 URL (예: https://example.com)"
