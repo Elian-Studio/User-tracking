@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { OverviewCards } from "./components/OverviewCards";
-import { RealtimeBadge } from "./components/RealtimeBadge";
 import { OnboardingCard } from "./components/OnboardingCard";
 import { TrendChart } from "./components/TrendChart";
 import { AcquisitionTable } from "./components/AcquisitionTable";
@@ -8,15 +7,14 @@ import { PagesTable } from "./components/PagesTable";
 import { ExitScrollChart } from "./components/ExitScrollChart";
 import { ScrollHeatmap } from "./components/ScrollHeatmap";
 import { LoginForm } from "./components/LoginForm";
-import { checkAuth, logout, listServices, saveServiceDomain, type ServiceItem } from "./api";
+import { Sidebar, type Section } from "./components/Sidebar";
+import { SettingsPanel } from "./components/SettingsPanel";
+import { RealtimePanel } from "./components/RealtimePanel";
+import { checkAuth, logout, listServices, type ServiceItem } from "./api";
 
 type Environment = "dev" | "staging" | "prod";
 
-const ENV_LABELS: Record<Environment, string> = {
-  dev: "DEV",
-  staging: "STAGING",
-  prod: "PROD",
-};
+const ENV_LABELS: Record<Environment, string> = { dev: "DEV", staging: "STAGING", prod: "PROD" };
 
 function detectEnv(key: string): Environment {
   if (key.endsWith("-dev")) return "dev";
@@ -27,13 +25,11 @@ function detectEnv(key: string): Environment {
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
-
 function daysAgoISO(n: number) {
   const d = new Date();
   d.setDate(d.getDate() - n);
   return d.toISOString().slice(0, 10);
 }
-
 function monthStartISO() {
   const d = new Date();
   d.setDate(1);
@@ -47,8 +43,10 @@ const DATE_PRESETS: { label: string; range: () => [string, string] }[] = [
   { label: "이번 달", range: () => [monthStartISO(), todayISO()] },
 ];
 
+// 날짜 필터를 쓰는 섹션
+const DATE_SECTIONS: Section[] = ["overview", "pages", "acquisition", "heatmap"];
+
 export function App() {
-  // null=확인중, false=미인증, true=인증
   const [authed, setAuthed] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -58,204 +56,149 @@ export function App() {
     return () => window.removeEventListener("flowmvp-unauthorized", onUnauthorized);
   }, []);
 
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [serviceKey, setServiceKey] = useState("");
+  const [startDate, setStartDate] = useState(daysAgoISO(29));
+  const [endDate, setEndDate] = useState(todayISO());
+  const [section, setSection] = useState<Section>("overview");
+  const [hasData, setHasData] = useState(true);
+  const [selectedPath, setSelectedPath] = useState("");
+  const [heatmapPath, setHeatmapPath] = useState("");
+
+  const reloadServices = () => {
+    listServices().then((list) => {
+      setServices(list);
+      if (list.length > 0) {
+        setServiceKey((cur) => cur || list[0].service_key);
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (authed === true) reloadServices();
+  }, [authed]);
+
+  // 서비스/날짜 바뀌면 선택 경로 초기화
+  useEffect(() => {
+    setSelectedPath("");
+    setHeatmapPath("");
+  }, [serviceKey, startDate, endDate]);
+
   const handleLogout = async () => {
     await logout();
     setAuthed(false);
   };
 
-  const [services, setServices] = useState<ServiceItem[]>([]);
-  const [serviceKey, setServiceKey] = useState("");
-  const [siteUrl, setSiteUrl] = useState("");
-  const [startDate, setStartDate] = useState(daysAgoISO(29));
-  const [endDate, setEndDate] = useState(todayISO());
-  const [appliedKey, setAppliedKey] = useState("");
-  const [appliedSiteUrl, setAppliedSiteUrl] = useState("");
-  const [appliedStart, setAppliedStart] = useState("");
-  const [appliedEnd, setAppliedEnd] = useState("");
-  const [selectedPath, setSelectedPath] = useState("");
-  const [heatmapPath, setHeatmapPath] = useState("");
-  const [hasData, setHasData] = useState(true);
-
-  // 조회 실행 — applied* 갱신(컴포넌트들이 이걸 보고 fetch)
-  const applyFilters = (key: string, url: string, start: string, end: string) => {
-    setAppliedKey(key);
-    setAppliedSiteUrl(url);
-    setAppliedStart(start + "T00:00:00Z");
-    setAppliedEnd(end + "T23:59:59Z");
-    setSelectedPath("");
-    setHeatmapPath("");
-    setHasData(true);
-  };
-
-  // 인증되면 서비스 목록 로드 → 첫 서비스 자동 선택 + 자동 조회(빈 화면 제거)
-  useEffect(() => {
-    if (authed !== true) return;
-    listServices().then((list) => {
-      setServices(list);
-      if (list.length > 0) {
-        const first = list[0];
-        setServiceKey(first.service_key);
-        setSiteUrl(first.domain ?? "");
-        applyFilters(first.service_key, first.domain ?? "", startDate, endDate);
-      }
-    });
-  }, [authed]);
-
-  // 서비스 변경 → 도메인 자동 채움 + 자동 조회
-  const handleSelectService = (key: string) => {
-    const svc = services.find((s) => s.service_key === key);
-    const url = svc?.domain ?? "";
-    setServiceKey(key);
-    setSiteUrl(url);
-    applyFilters(key, url, startDate, endDate);
-  };
-
-  // 날짜 변경 → 자동 조회
-  const handleDateChange = (which: "start" | "end", val: string) => {
-    const start = which === "start" ? val : startDate;
-    const end = which === "end" ? val : endDate;
-    if (which === "start") setStartDate(val);
-    else setEndDate(val);
-    if (serviceKey) applyFilters(serviceKey, siteUrl, start, end);
-  };
-
-  // 날짜 프리셋 → 기간 설정 + 자동 조회
-  const applyPreset = (start: string, end: string) => {
-    setStartDate(start);
-    setEndDate(end);
-    if (serviceKey) applyFilters(serviceKey, siteUrl, start, end);
-  };
-
-  // 조회 버튼: 입력한 사이트 URL을 서비스 도메인으로 저장 + 적용(URL 수동 변경 반영용)
-  const handleApply = () => {
-    if (!serviceKey) return;
-    if (siteUrl) {
-      saveServiceDomain(serviceKey, siteUrl);
-      setServices((prev) =>
-        prev.map((s) => (s.service_key === serviceKey ? { ...s, domain: siteUrl } : s)),
-      );
-    }
-    applyFilters(serviceKey, siteUrl, startDate, endDate);
+  const applyPreset = (s: string, e: string) => {
+    setStartDate(s);
+    setEndDate(e);
   };
 
   if (authed === null) {
-    return <div className="dashboard"><div className="empty">로딩 중...</div></div>;
+    return <div className="login-wrap"><div className="empty">로딩 중...</div></div>;
   }
-
   if (!authed) {
     return <LoginForm onSuccess={() => setAuthed(true)} />;
   }
 
+  const startISO = startDate + "T00:00:00Z";
+  const endISO = endDate + "T23:59:59Z";
+  const selectedSvc = services.find((s) => s.service_key === serviceKey);
+  const siteUrl = selectedSvc?.domain ?? "";
+
+  const dataProps = { serviceKey, startDate: startISO, endDate: endISO };
+
   return (
-    <div className="dashboard">
-      <div className="header-row">
-        <h1>사용자 분석</h1>
-        {appliedKey && (
-          <span className={`env-badge env-${detectEnv(appliedKey)}`}>
-            {ENV_LABELS[detectEnv(appliedKey)]}
-          </span>
-        )}
-        {appliedKey && <RealtimeBadge serviceKey={appliedKey} />}
-        <button className="btn-logout" onClick={handleLogout}>로그아웃</button>
-      </div>
-      <div className="filters">
-        <select
-          className="select-service"
-          value={serviceKey}
-          onChange={(e) => handleSelectService(e.target.value)}
-        >
-          {services.length === 0 && <option value="">등록된 서비스 없음</option>}
-          {services.map((s) => (
-            <option key={s.service_key} value={s.service_key}>
-              {s.service_key}
-            </option>
-          ))}
-        </select>
-        <input
-          type="text"
-          placeholder="사이트 URL (예: https://example.com)"
-          className="input-site-url"
-          value={siteUrl}
-          onChange={(e) => setSiteUrl(e.target.value)}
-        />
-        <input
-          type="date"
-          value={startDate}
-          onChange={(e) => handleDateChange("start", e.target.value)}
-        />
-        <input
-          type="date"
-          value={endDate}
-          onChange={(e) => handleDateChange("end", e.target.value)}
-        />
-        <div className="date-presets">
-          {DATE_PRESETS.map((p) => {
-            const [s, e] = p.range();
-            const active = startDate === s && endDate === e;
-            return (
-              <button
-                key={p.label}
-                className={active ? "active" : ""}
-                onClick={() => applyPreset(s, e)}
-              >
-                {p.label}
-              </button>
-            );
-          })}
-        </div>
-        <button className="btn-apply" onClick={handleApply}>조회</button>
-      </div>
+    <div className="app-shell">
+      <Sidebar
+        services={services}
+        serviceKey={serviceKey}
+        onSelectService={setServiceKey}
+        section={section}
+        onSection={setSection}
+        onLogout={handleLogout}
+      />
 
-      {appliedKey && (
-        <>
-          <OverviewCards
-            serviceKey={appliedKey}
-            startDate={appliedStart}
-            endDate={appliedEnd}
-            onLoaded={setHasData}
-          />
-          {!hasData && <OnboardingCard serviceKey={appliedKey} />}
-          <TrendChart
-            serviceKey={appliedKey}
-            startDate={appliedStart}
-            endDate={appliedEnd}
-          />
-          <AcquisitionTable
-            serviceKey={appliedKey}
-            startDate={appliedStart}
-            endDate={appliedEnd}
-          />
-          <PagesTable
-            serviceKey={appliedKey}
-            startDate={appliedStart}
-            endDate={appliedEnd}
-            onSelectPath={setSelectedPath}
-            onHeatmapPath={(path) => {
-              if (!appliedSiteUrl) {
-                alert("히트맵을 보려면 사이트 URL을 입력하세요.");
-                return;
-              }
-              setHeatmapPath(path);
-            }}
-          />
-          {selectedPath && (
-            <ExitScrollChart
-              serviceKey={appliedKey}
-              path={selectedPath}
-              startDate={appliedStart}
-              endDate={appliedEnd}
-            />
+      <main className="main">
+        <div className="topbar">
+          {serviceKey && (
+            <span className={`env-badge env-${detectEnv(serviceKey)}`}>
+              {ENV_LABELS[detectEnv(serviceKey)]}
+            </span>
           )}
-        </>
-      )}
+          <span className="topbar-title">
+            {{ overview: "개요", pages: "페이지별 통계", acquisition: "유입 경로", heatmap: "스크롤 히트맵", realtime: "실시간", settings: "설정" }[section]}
+          </span>
+          {DATE_SECTIONS.includes(section) && (
+            <div className="topbar-filters">
+              <div className="date-presets">
+                {DATE_PRESETS.map((p) => {
+                  const [s, e] = p.range();
+                  const active = startDate === s && endDate === e;
+                  return (
+                    <button key={p.label} className={active ? "active" : ""} onClick={() => applyPreset(s, e)}>
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            </div>
+          )}
+        </div>
 
-      {heatmapPath && appliedSiteUrl && (
+        <div className="content">
+          {!serviceKey ? (
+            <div className="empty">서비스가 없습니다. 앱에 SDK를 연동하면 자동 등록됩니다.</div>
+          ) : (
+            <>
+              {section === "overview" && (
+                <>
+                  <OverviewCards {...dataProps} onLoaded={setHasData} />
+                  {!hasData && <OnboardingCard serviceKey={serviceKey} />}
+                  <TrendChart {...dataProps} />
+                </>
+              )}
+
+              {section === "pages" && (
+                <>
+                  <PagesTable {...dataProps} onSelectPath={setSelectedPath} onHeatmapPath={setHeatmapPath} />
+                  {selectedPath && <ExitScrollChart serviceKey={serviceKey} path={selectedPath} startDate={startISO} endDate={endISO} />}
+                </>
+              )}
+
+              {section === "acquisition" && <AcquisitionTable {...dataProps} />}
+
+              {section === "heatmap" && (
+                <>
+                  <div className="section">
+                    <h2>스크롤 히트맵</h2>
+                    <p className="settings-sub">
+                      {siteUrl
+                        ? "페이지 행의 '히트맵' 버튼을 누르면 실제 페이지 위에 스크롤 분포가 표시됩니다."
+                        : "히트맵을 보려면 설정에서 이 서비스의 도메인을 먼저 등록하세요."}
+                    </p>
+                  </div>
+                  <PagesTable {...dataProps} onSelectPath={setSelectedPath} onHeatmapPath={(p) => { if (siteUrl) setHeatmapPath(p); }} />
+                </>
+              )}
+
+              {section === "realtime" && <RealtimePanel serviceKey={serviceKey} />}
+
+              {section === "settings" && <SettingsPanel services={services} onChanged={reloadServices} />}
+            </>
+          )}
+        </div>
+      </main>
+
+      {heatmapPath && siteUrl && (
         <ScrollHeatmap
-          serviceKey={appliedKey}
+          serviceKey={serviceKey}
           path={heatmapPath}
-          siteUrl={appliedSiteUrl}
-          startDate={appliedStart}
-          endDate={appliedEnd}
+          siteUrl={siteUrl}
+          startDate={startISO}
+          endDate={endISO}
           onClose={() => setHeatmapPath("")}
         />
       )}
