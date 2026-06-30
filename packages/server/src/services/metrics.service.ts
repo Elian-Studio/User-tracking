@@ -1,4 +1,5 @@
 import { sql } from "../db/client.js";
+import { classifyChannel } from "./channel.js";
 
 export async function getUniqueVisitors(serviceId: number, startDate: string, endDate: string) {
   const result = await sql`
@@ -54,6 +55,46 @@ export async function getPageViewsByPath(serviceId: number, startDate: string, e
       AND created_at < ${endDate}
     GROUP BY path
     ORDER BY views DESC
+  `;
+}
+
+export async function getAcquisitionChannels(serviceId: number, startDate: string, endDate: string) {
+  // 세션 진입 이벤트(가장 이른 created_at) 기준으로 유입 채널을 분류한다 — UV와 동일한 세션 grain.
+  // ponytail: 진입 행을 JS에서 집계. 세션 수가 매우 커지면 SQL CASE 집계로 옮길 것.
+  const rows = await sql`
+    SELECT DISTINCT ON (session_id) session_id, referrer, utm_source
+    FROM events
+    WHERE service_id = ${serviceId}
+      AND created_at >= ${startDate}
+      AND created_at < ${endDate}
+    ORDER BY session_id, created_at ASC
+  `;
+
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    const channel = classifyChannel(r.referrer, r.utm_source);
+    counts.set(channel, (counts.get(channel) ?? 0) + 1);
+  }
+
+  const total = rows.length;
+  return [...counts.entries()]
+    .map(([channel, sessions]) => ({
+      channel,
+      sessions,
+      percent: total === 0 ? 0 : Math.round((sessions / total) * 1000) / 10,
+    }))
+    .sort((a, b) => b.sessions - a.sessions);
+}
+
+export async function getEventsForExport(serviceId: number, startDate: string, endDate: string) {
+  return sql`
+    SELECT session_id, type, path, referrer, scroll_percent,
+           utm_source, utm_medium, utm_campaign, utm_term, utm_content, created_at
+    FROM events
+    WHERE service_id = ${serviceId}
+      AND created_at >= ${startDate}
+      AND created_at < ${endDate}
+    ORDER BY created_at ASC
   `;
 }
 
