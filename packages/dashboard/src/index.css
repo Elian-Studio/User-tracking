@@ -247,7 +247,7 @@ body {
   min-width: 150px;
 }
 
-.filters button {
+.filters .btn-apply {
   padding: 7px 18px;
   background: var(--accent);
   color: #fff;
@@ -259,8 +259,38 @@ body {
   transition: background 0.15s;
 }
 
-.filters button:hover {
+.filters .btn-apply:hover {
   background: var(--accent-hover);
+}
+
+/* 날짜 프리셋 토글 */
+.date-presets {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 2px;
+}
+
+.date-presets button {
+  padding: 5px 11px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 5px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.date-presets button:hover {
+  color: var(--text);
+}
+
+.date-presets button.active {
+  background: var(--accent);
+  color: #fff;
 }
 
 /* ── KPI cards ── */
