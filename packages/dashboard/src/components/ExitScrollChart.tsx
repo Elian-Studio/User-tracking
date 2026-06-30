@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { fetchExitScroll } from "../api";
+import { axisTick, axisLine, gridStroke, tooltipStyle } from "./chartTheme";
 
 interface Props {
   serviceKey: string;
@@ -48,11 +49,11 @@ export function ExitScrollChart({
         <>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={data.distribution}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="range" fontSize={11} />
-              <YAxis fontSize={12} />
-              <Tooltip />
-              <Bar dataKey="count" name="이탈 수" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+              <XAxis dataKey="range" tick={{ ...axisTick, fontSize: 11 }} axisLine={axisLine} tickLine={axisLine} />
+              <YAxis tick={axisTick} axisLine={axisLine} tickLine={axisLine} />
+              <Tooltip {...tooltipStyle} />
+              <Bar dataKey="count" name="이탈 수" fill="#fbbf24" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
           <div className="scroll-stats">

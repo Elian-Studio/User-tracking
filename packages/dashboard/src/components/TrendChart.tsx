@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { fetchTrend } from "../api";
+import { axisTick, axisLine, gridStroke, tooltipStyle } from "./chartTheme";
 
 interface Props {
   serviceKey: string;
@@ -57,16 +58,16 @@ export function TrendChart({ serviceKey, startDate, endDate }: Props) {
       ) : (
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" fontSize={12} />
-            <YAxis fontSize={12} />
-            <Tooltip />
-            <Legend />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+            <XAxis dataKey="date" tick={axisTick} axisLine={axisLine} tickLine={axisLine} />
+            <YAxis tick={axisTick} axisLine={axisLine} tickLine={axisLine} />
+            <Tooltip {...tooltipStyle} />
+            <Legend wrapperStyle={{ color: "#9aa3b8", fontSize: 12 }} />
             <Line
               type="monotone"
               dataKey="uv"
               name="UV"
-              stroke="#3b82f6"
+              stroke="#4f8cff"
               strokeWidth={2}
               dot={false}
             />
@@ -74,7 +75,7 @@ export function TrendChart({ serviceKey, startDate, endDate }: Props) {
               type="monotone"
               dataKey="pv"
               name="PV"
-              stroke="#10b981"
+              stroke="#34d399"
               strokeWidth={2}
               dot={false}
             />
