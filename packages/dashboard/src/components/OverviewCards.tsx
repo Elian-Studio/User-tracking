@@ -14,12 +14,14 @@ export function OverviewCards({ serviceKey, startDate, endDate }: Props) {
 
   useEffect(() => {
     if (!serviceKey) return;
+    // 서비스/기간 변경 시 즉시 리셋 → 이전 값이 남는 stale 방지 + 로딩 표시("—")
+    setUv(null);
+    setPv(null);
+    setBounceRate(null);
     fetchOverview(serviceKey, startDate, endDate).then((data) => {
-      if (data) {
-        setUv(data.uv);
-        setPv(data.pv);
-        setBounceRate(data.bounceRate);
-      }
+      setUv(data?.uv ?? null);
+      setPv(data?.pv ?? null);
+      setBounceRate(data?.bounceRate ?? null);
     });
   }, [serviceKey, startDate, endDate]);
 

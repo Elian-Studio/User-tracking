@@ -26,11 +26,24 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function monthAgoISO() {
+function daysAgoISO(n: number) {
   const d = new Date();
-  d.setMonth(d.getMonth() - 1);
+  d.setDate(d.getDate() - n);
   return d.toISOString().slice(0, 10);
 }
+
+function monthStartISO() {
+  const d = new Date();
+  d.setDate(1);
+  return d.toISOString().slice(0, 10);
+}
+
+const DATE_PRESETS: { label: string; range: () => [string, string] }[] = [
+  { label: "오늘", range: () => [todayISO(), todayISO()] },
+  { label: "7일", range: () => [daysAgoISO(6), todayISO()] },
+  { label: "30일", range: () => [daysAgoISO(29), todayISO()] },
+  { label: "이번 달", range: () => [monthStartISO(), todayISO()] },
+];
 
 export function App() {
   // null=확인중, false=미인증, true=인증
@@ -51,25 +64,7 @@ export function App() {
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [serviceKey, setServiceKey] = useState("");
   const [siteUrl, setSiteUrl] = useState("");
-
-  // 인증되면 서비스 목록 로드 → 드롭다운 채우고 첫 서비스 자동 선택(도메인 자동 채움)
-  useEffect(() => {
-    if (authed !== true) return;
-    listServices().then((list) => {
-      setServices(list);
-      if (list.length > 0) {
-        setServiceKey(list[0].service_key);
-        setSiteUrl(list[0].domain ?? "");
-      }
-    });
-  }, [authed]);
-
-  const handleSelectService = (key: string) => {
-    setServiceKey(key);
-    const svc = services.find((s) => s.service_key === key);
-    setSiteUrl(svc?.domain ?? "");
-  };
-  const [startDate, setStartDate] = useState(monthAgoISO());
+  const [startDate, setStartDate] = useState(daysAgoISO(29));
   const [endDate, setEndDate] = useState(todayISO());
   const [appliedKey, setAppliedKey] = useState("");
   const [appliedSiteUrl, setAppliedSiteUrl] = useState("");
@@ -78,21 +73,65 @@ export function App() {
   const [selectedPath, setSelectedPath] = useState("");
   const [heatmapPath, setHeatmapPath] = useState("");
 
+  // 조회 실행 — applied* 갱신(컴포넌트들이 이걸 보고 fetch)
+  const applyFilters = (key: string, url: string, start: string, end: string) => {
+    setAppliedKey(key);
+    setAppliedSiteUrl(url);
+    setAppliedStart(start + "T00:00:00Z");
+    setAppliedEnd(end + "T23:59:59Z");
+    setSelectedPath("");
+    setHeatmapPath("");
+  };
+
+  // 인증되면 서비스 목록 로드 → 첫 서비스 자동 선택 + 자동 조회(빈 화면 제거)
+  useEffect(() => {
+    if (authed !== true) return;
+    listServices().then((list) => {
+      setServices(list);
+      if (list.length > 0) {
+        const first = list[0];
+        setServiceKey(first.service_key);
+        setSiteUrl(first.domain ?? "");
+        applyFilters(first.service_key, first.domain ?? "", startDate, endDate);
+      }
+    });
+  }, [authed]);
+
+  // 서비스 변경 → 도메인 자동 채움 + 자동 조회
+  const handleSelectService = (key: string) => {
+    const svc = services.find((s) => s.service_key === key);
+    const url = svc?.domain ?? "";
+    setServiceKey(key);
+    setSiteUrl(url);
+    applyFilters(key, url, startDate, endDate);
+  };
+
+  // 날짜 변경 → 자동 조회
+  const handleDateChange = (which: "start" | "end", val: string) => {
+    const start = which === "start" ? val : startDate;
+    const end = which === "end" ? val : endDate;
+    if (which === "start") setStartDate(val);
+    else setEndDate(val);
+    if (serviceKey) applyFilters(serviceKey, siteUrl, start, end);
+  };
+
+  // 날짜 프리셋 → 기간 설정 + 자동 조회
+  const applyPreset = (start: string, end: string) => {
+    setStartDate(start);
+    setEndDate(end);
+    if (serviceKey) applyFilters(serviceKey, siteUrl, start, end);
+  };
+
+  // 조회 버튼: 입력한 사이트 URL을 서비스 도메인으로 저장 + 적용(URL 수동 변경 반영용)
   const handleApply = () => {
     if (!serviceKey) return;
-    // 입력한 사이트 URL을 해당 서비스 도메인으로 저장 → 다음에 선택 시 자동 채움
     if (siteUrl) {
       saveServiceDomain(serviceKey, siteUrl);
       setServices((prev) =>
         prev.map((s) => (s.service_key === serviceKey ? { ...s, domain: siteUrl } : s)),
       );
     }
-    setAppliedKey(serviceKey);
-    setAppliedSiteUrl(siteUrl);
-    setAppliedStart(startDate + "T00:00:00Z");
-    setAppliedEnd(endDate + "T23:59:59Z");
-    setSelectedPath("");
-    setHeatmapPath("");
+    applyFilters(serviceKey, siteUrl, startDate, endDate);
   };
 
   if (authed === null) {
@@ -137,14 +176,29 @@ export function App() {
         <input
           type="date"
           value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
+          onChange={(e) => handleDateChange("start", e.target.value)}
         />
         <input
           type="date"
           value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
+          onChange={(e) => handleDateChange("end", e.target.value)}
         />
-        <button onClick={handleApply}>조회</button>
+        <div className="date-presets">
+          {DATE_PRESETS.map((p) => {
+            const [s, e] = p.range();
+            const active = startDate === s && endDate === e;
+            return (
+              <button
+                key={p.label}
+                className={active ? "active" : ""}
+                onClick={() => applyPreset(s, e)}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+        <button className="btn-apply" onClick={handleApply}>조회</button>
       </div>
 
       {appliedKey && (
