@@ -3,9 +3,9 @@
   "buildCommand": "pnpm build:shared && pnpm --filter @flowmvp/dashboard build",
   "outputDirectory": "packages/dashboard/dist",
   "functions": {
-    "api/[...path].ts": { "maxDuration": 10 }
+    "api/[...slug].ts": { "maxDuration": 10 }
   },
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/[...path]" }
+    { "source": "/api/:slug*", "destination": "/api/[...slug]" }
   ]
 }
