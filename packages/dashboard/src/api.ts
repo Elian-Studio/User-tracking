@@ -191,9 +191,12 @@ export async function fetchTrend(
   startDate: string,
   endDate: string,
   interval: string,
+  timezone?: string,
 ): Promise<TrendData | null> {
   try {
-    const qs = buildParams({ serviceKey, startDate, endDate, interval });
+    const params: Record<string, string> = { serviceKey, startDate, endDate, interval };
+    if (timezone) params.timezone = timezone;
+    const qs = buildParams(params);
     const res = await authedFetch(`/api/metrics/trend?${qs}`);
     if (!res.ok) return null;
     return res.json();

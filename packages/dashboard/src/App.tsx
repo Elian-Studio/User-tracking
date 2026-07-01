@@ -156,7 +156,7 @@ export function App() {
                 <>
                   <OverviewCards {...dataProps} onLoaded={setHasData} />
                   {!hasData && <OnboardingCard serviceKey={serviceKey} />}
-                  <TrendChart {...dataProps} />
+                  <TrendChart {...dataProps} timezone={timezone} />
                 </>
               )}
 

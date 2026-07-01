@@ -1,5 +1,6 @@
 import { sql } from "../db/client.js";
 import { classifyChannel } from "./channel.js";
+import type { Interval } from "./trendParams.js";
 
 // 실시간 — 최근 5분 내 이벤트가 있는 고유 세션 수("지금 접속 중").
 export async function getActiveSessions(serviceId: number) {
@@ -147,8 +148,31 @@ export async function getVisitorTrend(
   serviceId: number,
   startDate: string,
   endDate: string,
-  interval: "day" | "week" | "month",
+  interval: Interval,
+  timezone: string,
 ) {
+  if (interval === "hour") {
+    // to_char로 고정 포맷 텍스트를 직접 반환 — date_trunc(... AT TIME ZONE)의 결과(timestamp without
+    // time zone)를 postgres.js가 Date 객체로 파싱하면 오프셋 없는 문자열이라 Node 프로세스의 로컬
+    // 타임존으로 재해석되어(ECMA Date 스펙) 사용자가 고른 타임존과 무관하게 값이 달라진다.
+    const rows = await sql`
+      SELECT
+        to_char(
+          date_trunc('hour', created_at AT TIME ZONE ${timezone}),
+          'YYYY-MM-DD"T"HH24:MI:SS'
+        ) as date,
+        COUNT(DISTINCT session_id) as uv,
+        COUNT(*) FILTER (WHERE type = 'page_view') as pv
+      FROM events
+      WHERE service_id = ${serviceId}
+        AND created_at >= ${startDate}
+        AND created_at < ${endDate}
+      GROUP BY 1
+      ORDER BY 1
+    `;
+    return rows.map((r) => ({ date: String(r.date), uv: Number(r.uv), pv: Number(r.pv) }));
+  }
+
   const rows = await sql`
     SELECT
       date_trunc(${interval}, created_at)::date as date,

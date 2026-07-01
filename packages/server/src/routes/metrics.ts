@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getServiceByKey } from "../services/service.service.js";
 import { getUniqueVisitors, getPageViews, getOverallBounceRate, getPageViewsByPath, getBounceRate, getExitScrollDistribution, getVisitorTrend, getAcquisitionChannels, getEventsForExport, getActiveSessions } from "../services/metrics.service.js";
+import { resolveInterval, resolveTimezone } from "../services/trendParams.js";
 import { rowsToCsv } from "../services/csv.js";
 import { requireAuth } from "../auth/middleware.js";
 
@@ -12,6 +13,7 @@ interface MetricsQuery {
 
 interface TrendQuery extends MetricsQuery {
   interval?: string;
+  timezone?: string;
 }
 
 interface BounceRateQuery extends MetricsQuery {
@@ -56,19 +58,17 @@ export async function metricsRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get<{ Querystring: TrendQuery }>("/api/metrics/trend", async (request, reply) => {
-    const { serviceKey, startDate, endDate, interval } = request.query;
+    const { serviceKey, startDate, endDate, interval, timezone } = request.query;
 
-    const validIntervals = ["day", "week", "month"] as const;
-    const resolvedInterval = validIntervals.includes(interval as any)
-      ? (interval as "day" | "week" | "month")
-      : "day";
+    const resolvedInterval = resolveInterval(interval);
+    const resolvedTimezone = resolveTimezone(timezone);
 
     const service = await getServiceByKey(serviceKey);
     if (!service) {
       return reply.status(404).send({ error: "Service not found" });
     }
 
-    const data = await getVisitorTrend(service.id, startDate, endDate, resolvedInterval);
+    const data = await getVisitorTrend(service.id, startDate, endDate, resolvedInterval, resolvedTimezone);
     return { interval: resolvedInterval, data };
   });
 
