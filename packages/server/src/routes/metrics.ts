@@ -69,7 +69,7 @@ export async function metricsRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const data = await getVisitorTrend(service.id, startDate, endDate, resolvedInterval, resolvedTimezone);
-    return { interval: resolvedInterval, data };
+    return { interval: resolvedInterval, timezone: resolvedTimezone, data };
   });
 
   app.get<{ Querystring: MetricsQuery }>("/api/metrics/pages", async (request, reply) => {

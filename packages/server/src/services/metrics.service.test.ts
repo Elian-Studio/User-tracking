@@ -51,4 +51,19 @@ describe("getVisitorTrend", () => {
     expect(queryText(call)).not.toContain("AT TIME ZONE");
     expect(call.slice(1)).not.toContain("Asia/Seoul");
   });
+
+  it("hour: 버킷은 타임존 변환 전(created_at)을 기준으로 자른다 — DST 가을철 중복 로컬 1시 병합 회귀 방지", async () => {
+    // 버그였던 이전 쿼리는 date_trunc('hour', created_at AT TIME ZONE $1)로 먼저 타임존을
+    // 씌운 뒤 잘랐다 — DST 종료일의 서로 다른 두 UTC 시각이 같은 로컬 벽시계로 겹쳐 GROUP BY가
+    // 하나로 합쳐버렸다. 고친 쿼리는 date_trunc('hour', created_at)로 먼저 자르고(항상 유일함),
+    // 그 결과만 표시용으로 타임존 변환해야 한다.
+    mockSql.mockResolvedValue([]);
+
+    await getVisitorTrend(1, "2026-11-01", "2026-11-02", "hour", "America/New_York");
+
+    const text = queryText(mockSql.mock.calls[0]);
+    expect(text).toContain("date_trunc('hour', created_at) as bucket");
+    expect(text).not.toContain("created_at AT TIME ZONE");
+    expect(text).toContain("created_at) AT TIME ZONE");
+  });
 });

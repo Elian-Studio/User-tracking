@@ -28,7 +28,21 @@ const INTERVAL_LABELS: Record<Interval, string> = {
   hour: "시간별",
 };
 
-const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+const MAX_SHORT_RANGE_DAYS = 3;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// 선택된 타임존 기준 달력 날짜(YYYY-MM-DD)를 UTC 자정 기준 일수로 변환 — DST 구간에서
+// 실제 경과 ms(24h가 아닌 23h/25h)로 범위를 판정하면 사용자가 고른 "3일"이 어긋난다.
+export function localDayIndex(instant: string, timezone: string): number {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const p = Object.fromEntries(dtf.formatToParts(new Date(instant)).map((x) => [x.type, x.value]));
+  return Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day)) / MS_PER_DAY;
+}
 
 // bucket 형태: "YYYY-MM-DDTHH:MM:SS" (서버가 이미 선택된 타임존으로 로컬라이즈한 문자열,
 // 끝에 Z가 없음 — new Date()로 재파싱하면 안 됨, 문자열 슬라이싱만 사용)
@@ -60,8 +74,8 @@ export function TrendChart({ serviceKey, startDate, endDate, timezone }: Props) 
     [],
   );
 
-  const spanMs = new Date(endDate).getTime() - new Date(startDate).getTime();
-  const isShortRange = spanMs <= THREE_DAYS_MS;
+  const isShortRange =
+    localDayIndex(endDate, timezone) - localDayIndex(startDate, timezone) <= MAX_SHORT_RANGE_DAYS;
   const effectiveInterval: Interval = interval === "hour" && !isShortRange ? "day" : interval;
 
   // 토글 버튼 표시 상태 정리용 — 쿼리 안전성은 effectiveInterval 파생값이 이미 보장하므로
