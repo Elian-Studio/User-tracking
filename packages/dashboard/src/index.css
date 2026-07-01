@@ -1153,6 +1153,16 @@ body {
     margin-left: 0;
   }
 
+  /* 트리거 우측 기준 절대 위치라 좁은 화면에서 왼쪽으로 잘림 — 뷰포트 중앙 고정으로 대체 */
+  .daterange-panel {
+    position: fixed;
+    top: auto;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(300px, calc(100vw - 32px));
+  }
+
   /* 넓은 표는 가로 스크롤 */
   .pages-table {
     display: block;
