@@ -185,4 +185,102 @@ describe("DateRangePicker", () => {
       "America/New_York"
     );
   });
+
+  it("두 날짜로 범위를 완성한 뒤 세 번째 날짜를 클릭하면 새 단일 날짜 선택으로 초기화된다", () => {
+    const { container } = setup();
+    fireEvent.click(container.querySelector(".daterange-trigger")!);
+    const findDay = (n: string) =>
+      (Array.from(container.querySelectorAll(".daterange-day")) as HTMLButtonElement[]).find(
+        (b) => b.textContent === n && !b.className.includes("dim")
+      )!;
+    const [startDateInput, , endDateInput] = container.querySelectorAll(
+      ".daterange-field-row input"
+    ) as NodeListOf<HTMLInputElement>;
+
+    fireEvent.click(findDay("15"));
+    fireEvent.click(findDay("20"));
+    expect(startDateInput.value).toBe("2026-06-15");
+    expect(endDateInput.value).toBe("2026-06-20");
+
+    fireEvent.click(findDay("10"));
+    expect(startDateInput.value).toBe("2026-06-10");
+    expect(endDateInput.value).toBe("2026-06-10");
+  });
+
+  it("날짜를 선택한 뒤 달을 이동해도 Start 값은 그대로 유지된다", () => {
+    const { container } = setup();
+    fireEvent.click(container.querySelector(".daterange-trigger")!);
+    const dayButtons = Array.from(container.querySelectorAll(".daterange-day")) as HTMLButtonElement[];
+    const day15 = dayButtons.find((b) => b.textContent === "15" && !b.className.includes("dim"))!;
+    fireEvent.click(day15);
+
+    const [startDateInput] = container.querySelectorAll(".daterange-field-row input") as NodeListOf<HTMLInputElement>;
+    expect(startDateInput.value).toBe("2026-06-15");
+
+    const [prevBtn, nextBtn] = container.querySelectorAll(".daterange-cal-header button");
+    const header = () => container.querySelector(".daterange-cal-header span")!.textContent;
+
+    fireEvent.click(nextBtn);
+    fireEvent.click(nextBtn);
+    expect(header()).toBe("2026년 8월");
+    expect(startDateInput.value).toBe("2026-06-15");
+
+    fireEvent.click(prevBtn);
+    fireEvent.click(prevBtn);
+    expect(header()).toBe("2026년 6월");
+    expect(startDateInput.value).toBe("2026-06-15");
+  });
+
+  it("End 날짜를 비워도 Apply 버튼이 비활성화되어 잘못된 시간 값으로 진행되지 않는다", () => {
+    const { container, onChange } = setup();
+    fireEvent.click(container.querySelector(".daterange-trigger")!);
+    const [, , endDateInput] = container.querySelectorAll(".daterange-field-row input");
+
+    fireEvent.change(endDateInput, { target: { value: "" } });
+
+    const applyBtn = container.querySelector(".daterange-apply") as HTMLButtonElement;
+    expect(applyBtn.disabled).toBe(true);
+
+    fireEvent.click(applyBtn);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("현재 범위가 프리셋과 정확히 일치하면 트리거에 프리셋 라벨이 표시된다", () => {
+    const onChange = vi.fn();
+    const [presetStart, presetEnd] = TODAY_PRESET.range();
+    const { container } = render(
+      <DateRangePicker
+        start={presetStart}
+        end={presetEnd}
+        timezone="Asia/Seoul"
+        presets={[TODAY_PRESET]}
+        onChange={onChange}
+      />
+    );
+
+    expect(container.querySelector(".daterange-trigger span")!.textContent).toBe("오늘");
+  });
+
+  it("범위 선택 도중 패널을 닫았다가 다시 열면 이전 선택은 초기화되고 새로 시작한다", () => {
+    const { container } = setup();
+    const trigger = container.querySelector(".daterange-trigger")!;
+    const findDay = (n: string) =>
+      (Array.from(container.querySelectorAll(".daterange-day")) as HTMLButtonElement[]).find(
+        (b) => b.textContent === n && !b.className.includes("dim")
+      )!;
+
+    fireEvent.click(trigger); // 열기
+    fireEvent.click(findDay("10")); // 첫 클릭만 하고 완료하지 않음 (pendingStart = 10일)
+
+    fireEvent.click(trigger); // 닫기
+    fireEvent.click(trigger); // 다시 열기 -> pendingStart는 초기화되어야 함
+
+    fireEvent.click(findDay("20")); // 이전 10일과 짝지어지면 안 되고, 새 단일 날짜 선택이어야 함
+
+    const [startDateInput, , endDateInput] = container.querySelectorAll(
+      ".daterange-field-row input"
+    ) as NodeListOf<HTMLInputElement>;
+    expect(startDateInput.value).toBe("2026-06-20");
+    expect(endDateInput.value).toBe("2026-06-20");
+  });
 });
