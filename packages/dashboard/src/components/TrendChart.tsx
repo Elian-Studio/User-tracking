@@ -43,6 +43,17 @@ export function formatHourTick(bucket: string, spansMultipleDays: boolean): stri
   return `${Number(m)}/${Number(d)} ${hhmm}`;
 }
 
+export function computeSpansMultipleDays(
+  effectiveInterval: Interval,
+  data: { date: string }[],
+): boolean {
+  return (
+    effectiveInterval === "hour" &&
+    data.length > 0 &&
+    data[0].date.slice(0, 10) !== data[data.length - 1].date.slice(0, 10)
+  );
+}
+
 export function TrendChart({ serviceKey, startDate, endDate, timezone }: Props) {
   const [interval, setInterval] = useState<Interval>("day");
   const [data, setData] = useState<{ date: string; uv: number; pv: number }[]>(
@@ -66,10 +77,7 @@ export function TrendChart({ serviceKey, startDate, endDate, timezone }: Props) 
     });
   }, [serviceKey, startDate, endDate, effectiveInterval, timezone]);
 
-  const spansMultipleDays =
-    effectiveInterval === "hour" &&
-    data.length > 0 &&
-    data[0].date.slice(0, 10) !== data[data.length - 1].date.slice(0, 10);
+  const spansMultipleDays = computeSpansMultipleDays(effectiveInterval, data);
 
   const intervals: Interval[] = isShortRange
     ? ["day", "week", "month", "hour"]

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, fireEvent, waitFor } from "@testing-library/react";
-import { TrendChart, formatHourTick } from "./TrendChart";
+import { TrendChart, formatHourTick, computeSpansMultipleDays } from "./TrendChart";
 import { fetchTrend } from "../api";
 
 vi.mock("../api", () => ({
@@ -42,6 +42,39 @@ describe("formatHourTick", () => {
   it("Recharts가 틱 크기 측정 패스에서 T 없는 값으로 호출해도 크래시하지 않는다", () => {
     expect(formatHourTick("", false)).toBe("");
     expect(formatHourTick("auto", false)).toBe("auto");
+  });
+});
+
+describe("computeSpansMultipleDays", () => {
+  it("시간별이 아니면 항상 false", () => {
+    expect(
+      computeSpansMultipleDays("day", [
+        { date: "2026-06-30T09:00:00" },
+        { date: "2026-07-01T09:00:00" },
+      ])
+    ).toBe(false);
+  });
+
+  it("데이터가 없으면 false", () => {
+    expect(computeSpansMultipleDays("hour", [])).toBe(false);
+  });
+
+  it("시간별 데이터가 같은 날짜 안이면 false", () => {
+    expect(
+      computeSpansMultipleDays("hour", [
+        { date: "2026-07-01T09:00:00" },
+        { date: "2026-07-01T14:00:00" },
+      ])
+    ).toBe(false);
+  });
+
+  it("시간별 데이터가 여러 날짜에 걸치면 true", () => {
+    expect(
+      computeSpansMultipleDays("hour", [
+        { date: "2026-06-30T16:00:00" },
+        { date: "2026-07-01T14:00:00" },
+      ])
+    ).toBe(true);
   });
 });
 
@@ -114,5 +147,71 @@ describe("TrendChart", () => {
         "Asia/Seoul"
       );
     });
+  });
+
+  it("범위가 정확히 3일이면(경계값 포함) '시간별' 버튼이 노출된다", () => {
+    // spanMs === THREE_DAYS_MS(259200000ms) — isShortRange는 <= 이므로 경계값 자체는 포함되어야 한다.
+    const { getByText } = setup("2026-06-28T00:00:00Z", "2026-07-01T00:00:00Z");
+    expect(getByText("시간별")).toBeTruthy();
+  });
+
+  it("범위가 3일을 1초 초과하면 '시간별' 버튼이 노출되지 않는다", () => {
+    // spanMs === THREE_DAYS_MS + 1000ms — 경계값 바로 다음 값에서 꺼지는지 확인.
+    const { queryByText } = setup("2026-06-28T00:00:00Z", "2026-07-01T00:00:01Z");
+    expect(queryByText("시간별")).toBeNull();
+  });
+
+  it("'시간별' 선택 후 범위가 넓어졌다가 다시 3일 이내로 좁아지면 '시간별'이 아닌 '일별'이 활성 상태다", async () => {
+    // effectiveInterval의 폴백만으론 이 시나리오를 구분 못 한다 — 범위가 다시 짧아지면
+    // effectiveInterval은 내부 interval 상태를 그대로 반영하므로, useEffect가 실제로
+    // interval을 "day"로 리셋해두지 않으면 '시간별'이 사용자 재선택 없이 다시 활성화된다.
+    const { getByText, rerender } = render(
+      <TrendChart
+        serviceKey="svc-1"
+        startDate="2026-06-30T00:00:00Z"
+        endDate="2026-07-01T23:59:59Z"
+        timezone="Asia/Seoul"
+      />
+    );
+
+    fireEvent.click(getByText("시간별"));
+    await waitFor(() => {
+      expect(getByText("시간별").className).toBe("active");
+    });
+
+    const widenedStart = new Date(
+      new Date("2026-06-30T00:00:00Z").getTime() - 10 * ONE_DAY_MS
+    ).toISOString();
+    rerender(
+      <TrendChart
+        serviceKey="svc-1"
+        startDate={widenedStart}
+        endDate="2026-07-01T23:59:59Z"
+        timezone="Asia/Seoul"
+      />
+    );
+    await waitFor(() => {
+      expect(mockedFetchTrend).toHaveBeenLastCalledWith(
+        "svc-1",
+        widenedStart,
+        "2026-07-01T23:59:59Z",
+        "day",
+        "Asia/Seoul"
+      );
+    });
+
+    rerender(
+      <TrendChart
+        serviceKey="svc-1"
+        startDate="2026-06-30T00:00:00Z"
+        endDate="2026-07-01T23:59:59Z"
+        timezone="Asia/Seoul"
+      />
+    );
+
+    await waitFor(() => {
+      expect(getByText("일별").className).toBe("active");
+    });
+    expect(getByText("시간별").className).toBe("");
   });
 });
