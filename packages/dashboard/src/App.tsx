@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { DateRangePicker } from "./components/DateRangePicker";
+import { DateRangePicker, type Preset } from "./components/DateRangePicker";
 import { OverviewCards } from "./components/OverviewCards";
 import { OnboardingCard } from "./components/OnboardingCard";
 import { TrendChart } from "./components/TrendChart";
@@ -41,7 +41,7 @@ function toInstantRange(start: string, end: string): [string, string] {
   return [start + "T00:00:00Z", end + "T23:59:59Z"];
 }
 
-const DATE_PRESETS: { label: string; range: () => [string, string] }[] = [
+const DATE_PRESETS: Preset[] = [
   { label: "오늘", range: () => toInstantRange(todayISO(), todayISO()) },
   { label: "7일", range: () => toInstantRange(daysAgoISO(6), todayISO()) },
   { label: "30일", range: () => toInstantRange(daysAgoISO(29), todayISO()) },

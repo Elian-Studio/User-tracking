@@ -1153,14 +1153,19 @@ body {
     margin-left: 0;
   }
 
-  /* 트리거 우측 기준 절대 위치라 좁은 화면에서 왼쪽으로 잘림 — 뷰포트 중앙 고정으로 대체 */
+  /* 트리거 우측 기준 절대 위치라 좁은 화면에서 왼쪽으로 잘림 — 뷰포트 정중앙 고정으로 대체.
+     top/bottom을 둘 다 auto로 두면 fixed 요소는 static position으로 폴백해 위치가
+     불확정적이므로 top도 명시적으로 고정한다. 콘텐츠가 짧은 뷰포트보다 길 수 있어
+     max-height + overflow-y로 잘리지 않고 스크롤되게 한다. */
   .daterange-panel {
     position: fixed;
-    top: auto;
+    top: 50%;
     left: 50%;
     right: auto;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
     width: min(300px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
   }
 
   /* 넓은 표는 가로 스크롤 */

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-interface Preset {
+export interface Preset {
   label: string;
   range: () => [string, string];
 }
@@ -43,11 +43,9 @@ function buildCalendarWeeks(viewDate: Date): Date[] {
   });
 }
 
-// 특정 타임존의 벽시계 시각(date+time)을 UTC 인스턴트로 변환
-function zonedTimeToUtcISO(dateStr: string, timeStr: string, timeZone: string): string {
-  const [y, mo, d] = dateStr.split("-").map(Number);
-  const [h, mi] = timeStr.split(":").map(Number);
-  const guess = Date.UTC(y, mo - 1, d, h, mi);
+// 주어진 인스턴트를 특정 타임존의 벽시계 부분(연/월/일/시/분/초)으로 분해 — 자정은 "24"로
+// 나오는 Intl 표기를 "00"으로 정규화해 호출부에서 각자 처리하지 않게 한다.
+function getZonedParts(instant: number, timeZone: string, withSeconds: boolean): Record<string, string> {
   const dtf = new Intl.DateTimeFormat("en-US", {
     timeZone,
     hour12: false,
@@ -56,26 +54,40 @@ function zonedTimeToUtcISO(dateStr: string, timeStr: string, timeZone: string): 
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
+    ...(withSeconds ? { second: "2-digit" } : {}),
   });
-  const p = Object.fromEntries(dtf.formatToParts(new Date(guess)).map((x) => [x.type, x.value])) as Record<string, string>;
-  const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, p.hour === "24" ? 0 : +p.hour, +p.minute, +p.second);
-  return new Date(guess - (asUtc - guess)).toISOString();
+  const p = Object.fromEntries(dtf.formatToParts(new Date(instant)).map((x) => [x.type, x.value])) as Record<
+    string,
+    string
+  >;
+  if (p.hour === "24") p.hour = "00";
+  return p;
+}
+
+// 특정 타임존의 벽시계 시각(date+time)을 UTC 인스턴트로 변환.
+// 오프셋 보정을 한 번만 하면 DST 전환일에 오답이 난다 — 예: America/New_York에서
+// 봄철 전환(2am EST -> 3am EDT) 직후의 유효한 시각(예: 06:30)도 guess 시점(전환 전, EST)
+// 오프셋으로 한 번만 보정하면 실제보다 1시간 어긋난 인스턴트가 나온다. 보정된 인스턴트에서
+// 오프셋을 다시 구해 안정될 때까지 반복해야 한다(최대 3회, 실제 IANA 규칙에서는 2회면 수렴).
+function zonedTimeToUtcISO(dateStr: string, timeStr: string, timeZone: string): string {
+  const [y, mo, d] = dateStr.split("-").map(Number);
+  const [h, mi] = timeStr.split(":").map(Number);
+  const target = Date.UTC(y, mo - 1, d, h, mi);
+  let instant = target;
+  for (let i = 0; i < 3; i++) {
+    const p = getZonedParts(instant, timeZone, true);
+    const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+    const next = target - (asUtc - instant);
+    if (next === instant) break;
+    instant = next;
+  }
+  return new Date(instant).toISOString();
 }
 
 // UTC 인스턴트를 특정 타임존의 벽시계 date/time 문자열로 변환
 function instantToZonedParts(instant: string, timeZone: string): { date: string; time: string } {
-  const dtf = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hour12: false,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const p = Object.fromEntries(dtf.formatToParts(new Date(instant)).map((x) => [x.type, x.value])) as Record<string, string>;
-  return { date: `${p.year}-${p.month}-${p.day}`, time: p.hour === "24" ? "00:" + p.minute : `${p.hour}:${p.minute}` };
+  const p = getZonedParts(new Date(instant).getTime(), timeZone, false);
+  return { date: `${p.year}-${p.month}-${p.day}`, time: `${p.hour}:${p.minute}` };
 }
 
 function shortLabel(dateStr: string, timeStr: string): string {

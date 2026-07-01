@@ -90,8 +90,8 @@ GET /api/metrics/trend?serviceKey=my-app&startDate=2026-02-01T00:00:00Z&endDate=
 | 파라미터 | 타입 | 기본값 | 설명 |
 |---------|------|--------|------|
 | `serviceKey` | string | — | 서비스 키 |
-| `startDate` | string | — | 시작 날짜 (ISO 8601) |
-| `endDate` | string | — | 종료 날짜 (ISO 8601) |
+| `startDate` | string | — | 시작 시각 (ISO 8601, `TIMESTAMPTZ` 비교로 그대로 전달됨 — 자정 외 임의 시:분:초·밀리초·비-UTC 타임존 오프셋도 허용) |
+| `endDate` | string | — | 종료 시각 (ISO 8601, 형식은 `startDate`와 동일) |
 | `interval` | string | `"day"` | 집계 단위: `day`, `week`, `month` |
 
 ```json

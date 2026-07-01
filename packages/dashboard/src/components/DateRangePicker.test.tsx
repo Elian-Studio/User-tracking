@@ -186,6 +186,32 @@ describe("DateRangePicker", () => {
     );
   });
 
+  it("서머타임 전환 직후(같은 날) 유효한 로컬 시각도 올바른 오프셋으로 변환한다", () => {
+    // America/New_York은 2026-03-08 02:00 EST -> 03:00 EDT로 전환된다. 전환 인스턴트
+    // 이전(guess) 시점 오프셋(EST, -05:00)만으로 한 번만 보정하면, 전환 이후에야 존재하는
+    // 유효한 로컬 시각(06:30)도 실제보다 1시간 어긋난 인스턴트로 계산되는 회귀가 있었다.
+    // 06:30 EDT(-04:00) === 10:30Z가 정답.
+    const { container, onChange } = setup();
+    fireEvent.click(container.querySelector(".daterange-trigger")!);
+    fireEvent.change(container.querySelector(".daterange-tz")!, {
+      target: { value: "America/New_York" },
+    });
+    const [startDateInput, startTimeInput, endDateInput, endTimeInput] =
+      container.querySelectorAll(".daterange-field-row input");
+
+    fireEvent.change(startDateInput, { target: { value: "2026-03-08" } });
+    fireEvent.change(startTimeInput, { target: { value: "06:30" } });
+    fireEvent.change(endDateInput, { target: { value: "2026-03-08" } });
+    fireEvent.change(endTimeInput, { target: { value: "07:00" } });
+    fireEvent.click(container.querySelector(".daterange-apply")!);
+
+    expect(onChange).toHaveBeenCalledWith(
+      "2026-03-08T10:30:00.000Z",
+      "2026-03-08T11:00:00.000Z",
+      "America/New_York"
+    );
+  });
+
   it("두 날짜로 범위를 완성한 뒤 세 번째 날짜를 클릭하면 새 단일 날짜 선택으로 초기화된다", () => {
     const { container } = setup();
     fireEvent.click(container.querySelector(".daterange-trigger")!);
