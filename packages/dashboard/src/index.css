@@ -1020,6 +1020,12 @@ body {
   background: var(--accent-hover);
 }
 
+.daterange-apply:disabled {
+  background: var(--panel-2);
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
 .daterange-tz {
   padding: 6px 8px;
   background: var(--panel-2);

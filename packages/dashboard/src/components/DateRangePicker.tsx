@@ -233,7 +233,13 @@ export function DateRangePicker({ start, end, timezone, onChange, presets }: Pro
               <input type="time" value={draftEndTime} onChange={(e) => setDraftEndTime(e.target.value)} />
             </div>
 
-            <button className="daterange-apply" onClick={handleApply}>적용 ↵</button>
+            <button
+              className="daterange-apply"
+              onClick={handleApply}
+              disabled={!draftStart || !draftEnd}
+            >
+              적용 ↵
+            </button>
 
             <select className="daterange-tz" value={draftTz} onChange={(e) => setDraftTz(e.target.value)}>
               {TZ_OPTIONS.map((tz) => (
