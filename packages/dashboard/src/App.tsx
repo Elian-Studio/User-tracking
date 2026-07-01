@@ -63,7 +63,7 @@ export function App() {
 
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [serviceKey, setServiceKey] = useState("");
-  const [startInstant, setStartInstant] = useState(daysAgoISO(29) + "T00:00:00Z");
+  const [startInstant, setStartInstant] = useState(daysAgoISO(6) + "T00:00:00Z");
   const [endInstant, setEndInstant] = useState(todayISO() + "T23:59:59Z");
   const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [section, setSection] = useState<Section>("overview");
