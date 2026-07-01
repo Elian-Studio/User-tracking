@@ -31,7 +31,7 @@ UV(순방문자), PV(페이지뷰), Bounce Rate(이탈률) 3개 지표를 카드
 
 ### 방문자 추이 차트
 
-일별/주별/월별 UV, PV 추이를 라인 차트로 시각화합니다. 인터벌 토글로 전환 가능합니다.
+일별/주별/월별 UV, PV 추이를 라인 차트로 시각화합니다. 인터벌 토글로 전환 가능합니다. 조회 기간이 3일 이하일 때는 시간별 보기도 토글에 나타납니다.
 
 ### 페이지별 통계 테이블
 
@@ -55,7 +55,7 @@ UV(순방문자), PV(페이지뷰), Bounce Rate(이탈률) 3개 지표를 카드
 | 컴포넌트 | API 호출 | 시각화 |
 |----------|---------|--------|
 | `OverviewCards` | `/api/metrics/overview` | UV, PV, Bounce Rate 숫자 카드 |
-| `TrendChart` | `/api/metrics/trend` | 일/주/월 토글 + UV/PV 라인 차트 (Recharts `LineChart`) |
+| `TrendChart` | `/api/metrics/trend` | 일/주/월(+3일 이하 범위에선 시간별) 토글 + UV/PV 라인 차트 (Recharts `LineChart`) |
 | `PagesTable` | `/api/metrics/pages` | 경로별 조회수 테이블 + 분석/히트맵 버튼 |
 | `ExitScrollChart` | `/api/metrics/exit-scroll` | 스크롤 구간별 이탈 바 차트 (Recharts `BarChart`) + 통계 |
 | `ScrollHeatmap` | `/api/metrics/exit-scroll` | iframe + 색상 오버레이 히트맵 모달 |

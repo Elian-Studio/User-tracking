@@ -1,5 +1,6 @@
 import { sql } from "../db/client.js";
 import { classifyChannel } from "./channel.js";
+import type { Interval } from "./trendParams.js";
 
 // 실시간 — 최근 5분 내 이벤트가 있는 고유 세션 수("지금 접속 중").
 export async function getActiveSessions(serviceId: number) {
@@ -143,12 +144,43 @@ export async function getBounceRate(serviceId: number, path: string, startDate: 
   return Number(exit_count) / Number(total_count);
 }
 
+// timezone은 interval==="hour"일 때만 사용된다 — day/week/month는 의도적으로 기존과 동일하게
+// DB 세션 타임존(UTC) 기준 date_trunc를 그대로 쓴다(회귀 없음이 목적, 범위 확장 아님).
 export async function getVisitorTrend(
   serviceId: number,
   startDate: string,
   endDate: string,
-  interval: "day" | "week" | "month",
+  interval: Interval,
+  timezone: string,
 ) {
+  if (interval === "hour") {
+    // 버킷 키는 반드시 created_at(UTC 인스턴트)을 먼저 자른 뒤에 타임존 변환해야 한다 — 순서를
+    // 바꿔서 "created_at AT TIME ZONE tz"를 먼저 하면 DST 가을철 종료일의 중복 로컬 1시(서로 다른
+    // 두 UTC 시각)가 같은 벽시계 문자열로 겹쳐 GROUP BY가 두 시간을 하나로 합쳐버린다. UTC 인스턴트
+    // 기준으로 자른 값은 항상 유일하므로, 그 유일한 값을 표시용으로만 타임존 변환한다.
+    //
+    // to_char로 고정 포맷 텍스트를 직접 반환 — 이 결과(timestamp without time zone)를 postgres.js가
+    // Date 객체로 파싱하면 오프셋 없는 문자열이라 Node 프로세스의 로컬 타임존으로 재해석되어(ECMA Date
+    // 스펙) 사용자가 고른 타임존과 무관하게 값이 달라진다.
+    const rows = await sql`
+      SELECT
+        date_trunc('hour', created_at) as bucket,
+        to_char(
+          date_trunc('hour', created_at) AT TIME ZONE ${timezone},
+          'YYYY-MM-DD"T"HH24:MI:SS'
+        ) as date,
+        COUNT(DISTINCT session_id) as uv,
+        COUNT(*) FILTER (WHERE type = 'page_view') as pv
+      FROM events
+      WHERE service_id = ${serviceId}
+        AND created_at >= ${startDate}
+        AND created_at < ${endDate}
+      GROUP BY 1
+      ORDER BY 1
+    `;
+    return rows.map((r) => ({ date: String(r.date), uv: Number(r.uv), pv: Number(r.pv) }));
+  }
+
   const rows = await sql`
     SELECT
       date_trunc(${interval}, created_at)::date as date,
