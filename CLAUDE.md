@@ -53,3 +53,22 @@ PostgreSQL with 3 tables: `services`, `sessions` (UUID PK), `events` (BIGSERIAL 
 ## Communication
 
 - **모든 응답은 한국어로 작성합니다.** 코드, 커밋 메시지, 변수명 등 코드 자체는 영어를 유지하되, 사용자와의 대화 및 설명은 한국어로 합니다.
+
+## Skill routing
+
+When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
+
+Key routing rules:
+- Product ideas/brainstorming → invoke /office-hours
+- Strategy/scope → invoke /plan-ceo-review
+- Architecture → invoke /plan-eng-review
+- Design system/plan review → invoke /design-consultation or /plan-design-review
+- Full review pipeline → invoke /autoplan
+- Bugs/errors → invoke /investigate
+- QA/testing site behavior → invoke /qa or /qa-only
+- Code review/diff check → invoke /review
+- Visual polish → invoke /design-review
+- Ship/deploy/PR → invoke /ship or /land-and-deploy
+- Save progress → invoke /context-save
+- Resume context → invoke /context-restore
+- Author a backlog-ready spec/issue → invoke /spec
