@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { DateRangePicker } from "./components/DateRangePicker";
 import { OverviewCards } from "./components/OverviewCards";
 import { OnboardingCard } from "./components/OnboardingCard";
 import { TrendChart } from "./components/TrendChart";
@@ -36,11 +37,15 @@ function monthStartISO() {
   return d.toISOString().slice(0, 10);
 }
 
+function toInstantRange(start: string, end: string): [string, string] {
+  return [start + "T00:00:00Z", end + "T23:59:59Z"];
+}
+
 const DATE_PRESETS: { label: string; range: () => [string, string] }[] = [
-  { label: "오늘", range: () => [todayISO(), todayISO()] },
-  { label: "7일", range: () => [daysAgoISO(6), todayISO()] },
-  { label: "30일", range: () => [daysAgoISO(29), todayISO()] },
-  { label: "이번 달", range: () => [monthStartISO(), todayISO()] },
+  { label: "오늘", range: () => toInstantRange(todayISO(), todayISO()) },
+  { label: "7일", range: () => toInstantRange(daysAgoISO(6), todayISO()) },
+  { label: "30일", range: () => toInstantRange(daysAgoISO(29), todayISO()) },
+  { label: "이번 달", range: () => toInstantRange(monthStartISO(), todayISO()) },
 ];
 
 // 날짜 필터를 쓰는 섹션
@@ -58,8 +63,9 @@ export function App() {
 
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [serviceKey, setServiceKey] = useState("");
-  const [startDate, setStartDate] = useState(daysAgoISO(29));
-  const [endDate, setEndDate] = useState(todayISO());
+  const [startInstant, setStartInstant] = useState(daysAgoISO(29) + "T00:00:00Z");
+  const [endInstant, setEndInstant] = useState(todayISO() + "T23:59:59Z");
+  const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [section, setSection] = useState<Section>("overview");
   const [hasData, setHasData] = useState(true);
   const [selectedPath, setSelectedPath] = useState("");
@@ -82,16 +88,11 @@ export function App() {
   useEffect(() => {
     setSelectedPath("");
     setHeatmapPath("");
-  }, [serviceKey, startDate, endDate]);
+  }, [serviceKey, startInstant, endInstant]);
 
   const handleLogout = async () => {
     await logout();
     setAuthed(false);
-  };
-
-  const applyPreset = (s: string, e: string) => {
-    setStartDate(s);
-    setEndDate(e);
   };
 
   if (authed === null) {
@@ -101,8 +102,8 @@ export function App() {
     return <LoginForm onSuccess={() => setAuthed(true)} />;
   }
 
-  const startISO = startDate + "T00:00:00Z";
-  const endISO = endDate + "T23:59:59Z";
+  const startISO = startInstant;
+  const endISO = endInstant;
   const selectedSvc = services.find((s) => s.service_key === serviceKey);
   const siteUrl = selectedSvc?.domain ?? "";
 
@@ -131,19 +132,17 @@ export function App() {
           </span>
           {DATE_SECTIONS.includes(section) && (
             <div className="topbar-filters">
-              <div className="date-presets">
-                {DATE_PRESETS.map((p) => {
-                  const [s, e] = p.range();
-                  const active = startDate === s && endDate === e;
-                  return (
-                    <button key={p.label} className={active ? "active" : ""} onClick={() => applyPreset(s, e)}>
-                      {p.label}
-                    </button>
-                  );
-                })}
-              </div>
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <DateRangePicker
+                start={startInstant}
+                end={endInstant}
+                timezone={timezone}
+                presets={DATE_PRESETS}
+                onChange={(s, e, tz) => {
+                  setStartInstant(s);
+                  setEndInstant(e);
+                  setTimezone(tz);
+                }}
+              />
             </div>
           )}
         </div>
