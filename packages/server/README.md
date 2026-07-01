@@ -98,6 +98,7 @@ GET /api/metrics/trend?serviceKey=my-app&startDate=2026-02-01T00:00:00Z&endDate=
 ```json
 {
   "interval": "day",
+  "timezone": "UTC",
   "data": [
     { "date": "2026-02-01", "uv": 150, "pv": 420 },
     { "date": "2026-02-02", "uv": 135, "pv": 380 }
