@@ -92,7 +92,8 @@ GET /api/metrics/trend?serviceKey=my-app&startDate=2026-02-01T00:00:00Z&endDate=
 | `serviceKey` | string | — | 서비스 키 |
 | `startDate` | string | — | 시작 날짜 (ISO 8601) |
 | `endDate` | string | — | 종료 날짜 (ISO 8601) |
-| `interval` | string | `"day"` | 집계 단위: `day`, `week`, `month` |
+| `interval` | string | `"day"` | 집계 단위: `day`, `week`, `month`, `hour` |
+| `timezone` | string | `"UTC"` | IANA 타임존 이름. `interval=hour`일 때만 시간 경계 계산에 반영됨 — day/week/month는 DB 세션 타임존(UTC) 기준 그대로 |
 
 ```json
 {
@@ -103,6 +104,8 @@ GET /api/metrics/trend?serviceKey=my-app&startDate=2026-02-01T00:00:00Z&endDate=
   ]
 }
 ```
+
+`interval=hour`일 때는 `date` 필드가 `"2026-02-01T09:00:00"` 형태(로컬 벽시계 문자열, 끝에 `Z` 없음)로 바뀐다 — UTC 인스턴트가 아니므로 클라이언트에서 `new Date()`로 재파싱하면 안 된다.
 
 #### `GET /api/metrics/pages`
 

@@ -144,6 +144,8 @@ export async function getBounceRate(serviceId: number, path: string, startDate: 
   return Number(exit_count) / Number(total_count);
 }
 
+// timezone은 interval==="hour"일 때만 사용된다 — day/week/month는 의도적으로 기존과 동일하게
+// DB 세션 타임존(UTC) 기준 date_trunc를 그대로 쓴다(회귀 없음이 목적, 범위 확장 아님).
 export async function getVisitorTrend(
   serviceId: number,
   startDate: string,
