@@ -13,13 +13,16 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist *.tsbuildinfo"
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "vitest run"
   },
   "dependencies": {
     "@flowmvp/shared": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.7"
+    "jsdom": "^29.1.1",
+    "typescript": "^5.7",
+    "vitest": "^4.1.9"
   },
   "peerDependencies": {
     "react": "^18 || ^19"

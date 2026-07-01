@@ -50,6 +50,17 @@ Copy `packages/server/.env.example` to `packages/server/.env`.
 
 PostgreSQL with 3 tables: `services`, `sessions` (UUID PK), `events` (BIGSERIAL PK with CHECK constraint on type). Migration SQL at `packages/server/src/db/migrations/001_init.sql`. Multi-tenant by `service_key` — each React project registers with a unique key.
 
+## Testing
+
+Vitest across all packages (`pnpm test`, or `pnpm --filter <pkg> test`). `dashboard` also uses `@testing-library/react`. See `TESTING.md` for framework details and conventions.
+
+- 100% test coverage is the goal — tests make vibe coding safe.
+- When writing a new function, write a corresponding test.
+- When fixing a bug, write a regression test.
+- When adding error handling, write a test that triggers the error.
+- When adding a conditional (if/else, switch), write tests for BOTH paths.
+- Never commit code that makes existing tests fail.
+
 ## Communication
 
 - **모든 응답은 한국어로 작성합니다.** 코드, 커밋 메시지, 변수명 등 코드 자체는 영어를 유지하되, 사용자와의 대화 및 설명은 한국어로 합니다.
