@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { DateRangePicker, type Preset } from "./components/DateRangePicker";
+import { DateRangePicker, type Preset, zonedTimeToUtcISO } from "./components/DateRangePicker";
 import { OverviewCards } from "./components/OverviewCards";
 import { OnboardingCard } from "./components/OnboardingCard";
 import { TrendChart } from "./components/TrendChart";
@@ -23,30 +23,58 @@ function detectEnv(key: string): Environment {
   return "prod";
 }
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-function daysAgoISO(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
-}
-function monthStartISO() {
-  const d = new Date();
-  d.setDate(1);
-  return d.toISOString().slice(0, 10);
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
 }
 
-function toInstantRange(start: string, end: string): [string, string] {
-  return [start + "T00:00:00Z", end + "T23:59:59Z"];
+// "오늘"의 기준은 브라우저가 아니라 선택된 타임존이어야 한다 — 그대로 두면 Asia/Seoul
+// 사용자가 로컬 자정 근처에 "오늘"을 눌러도 UTC 자정 기준 날짜가 나와 로컬 오전 9시까지
+// 누락된다.
+function zonedTodayParts(timezone: string): { y: number; m: number; d: number } {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const p = Object.fromEntries(dtf.formatToParts(new Date()).map((x) => [x.type, x.value])) as Record<
+    string,
+    string
+  >;
+  return { y: +p.year, m: +p.month, d: +p.day };
+}
+
+function todayInTz(timezone: string): string {
+  const { y, m, d } = zonedTodayParts(timezone);
+  return `${y}-${pad(m)}-${pad(d)}`;
+}
+
+function daysAgoInTz(n: number, timezone: string): string {
+  const { y, m, d } = zonedTodayParts(timezone);
+  const dt = new Date(Date.UTC(y, m - 1, d - n));
+  return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
+}
+
+function monthStartInTz(timezone: string): string {
+  const { y, m } = zonedTodayParts(timezone);
+  return `${y}-${pad(m)}-01`;
+}
+
+function toInstantRange(startDate: string, endDate: string, timezone: string): [string, string] {
+  const s = zonedTimeToUtcISO(startDate, "00:00", timezone);
+  const eRaw = zonedTimeToUtcISO(endDate, "23:59", timezone);
+  const e = new Date(new Date(eRaw).getTime() + 59000).toISOString(); // 23:59:59까지 포함
+  return [s, e];
 }
 
 const DATE_PRESETS: Preset[] = [
-  { label: "오늘", range: () => toInstantRange(todayISO(), todayISO()) },
-  { label: "7일", range: () => toInstantRange(daysAgoISO(6), todayISO()) },
-  { label: "30일", range: () => toInstantRange(daysAgoISO(29), todayISO()) },
-  { label: "이번 달", range: () => toInstantRange(monthStartISO(), todayISO()) },
+  { label: "오늘", range: (tz) => toInstantRange(todayInTz(tz), todayInTz(tz), tz) },
+  { label: "7일", range: (tz) => toInstantRange(daysAgoInTz(6, tz), todayInTz(tz), tz) },
+  { label: "30일", range: (tz) => toInstantRange(daysAgoInTz(29, tz), todayInTz(tz), tz) },
+  { label: "이번 달", range: (tz) => toInstantRange(monthStartInTz(tz), todayInTz(tz), tz) },
 ];
+
+const INITIAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 // 날짜 필터를 쓰는 섹션
 const DATE_SECTIONS: Section[] = ["overview", "pages", "acquisition", "heatmap"];
@@ -63,9 +91,11 @@ export function App() {
 
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [serviceKey, setServiceKey] = useState("");
-  const [startInstant, setStartInstant] = useState(daysAgoISO(6) + "T00:00:00Z");
-  const [endInstant, setEndInstant] = useState(todayISO() + "T23:59:59Z");
-  const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  // 기본 범위(최근 7일)도 "7일" 프리셋과 동일한 타임존 기준 계산을 써야 한다 — UTC 자정
+  // 기준으로 하드코딩하면 최초 로드 시점에 이미 로컬 기준으로는 어긋난 범위가 조회된다.
+  const [startInstant, setStartInstant] = useState(() => DATE_PRESETS[1].range(INITIAL_TZ)[0]);
+  const [endInstant, setEndInstant] = useState(() => DATE_PRESETS[1].range(INITIAL_TZ)[1]);
+  const [timezone, setTimezone] = useState(INITIAL_TZ);
   const [section, setSection] = useState<Section>("overview");
   const handleDateRangeChange = useCallback((s: string, e: string, tz: string) => {
     setStartInstant(s);

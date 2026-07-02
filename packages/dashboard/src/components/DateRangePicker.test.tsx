@@ -1,10 +1,36 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
-import { DateRangePicker } from "./DateRangePicker";
+import { DateRangePicker, zonedTimeToUtcISO } from "./DateRangePicker";
+
+describe("zonedTimeToUtcISO — DST 경계", () => {
+  it("존재하지 않는 벽시계 시각(봄철 갭)은 갭만큼 앞으로 민 시각으로 취급한다", () => {
+    // America/New_York은 2026-03-08 02:00 EST에서 03:00 EDT로 건너뛴다. 02:30은 실제로
+    // 존재하지 않는 시각 — Luxon/moment-timezone과 동일하게 갭 이후(EDT) 오프셋 기준으로
+    // 해석해 03:30 EDT(=07:30Z)로 취급한다.
+    expect(zonedTimeToUtcISO("2026-03-08", "02:30", "America/New_York")).toBe(
+      "2026-03-08T07:30:00.000Z"
+    );
+  });
+
+  it("중복되는 벽시계 시각(가을철)은 먼저 오는(이른) 쪽을 반환한다", () => {
+    // America/New_York은 2026-11-01 02:00 EDT에서 01:00 EST로 되돌아가 01:00~01:59가
+    // 두 번 존재한다. 먼저 오는 EDT 쪽(05:30Z)을 반환해야 한다.
+    expect(zonedTimeToUtcISO("2026-11-01", "01:30", "America/New_York")).toBe(
+      "2026-11-01T05:30:00.000Z"
+    );
+  });
+});
 
 const TODAY_PRESET = {
   label: "오늘",
   range: () => ["2026-07-01T00:00:00Z", "2026-07-01T23:59:59Z"] as [string, string],
+};
+
+// range가 실제로 timezone 인자에 반응하는 프리셋 — applyPreset이 커밋된 timezone이 아니라
+// 방금 드롭다운에서 고른 draftTz를 넘기는지 검증할 때 쓴다.
+const TZ_AWARE_PRESET = {
+  label: "TZ인지",
+  range: (tz: string) => [`start-${tz}`, `end-${tz}`] as [string, string],
 };
 
 function setup() {
@@ -43,10 +69,12 @@ describe("DateRangePicker", () => {
     fireEvent.change(endTimeInput, { target: { value: "08:59" } });
     fireEvent.click(container.querySelector(".daterange-apply")!);
 
-    // Asia/Seoul(UTC+9): 06-15 10:30 로컬 -> 06-15 01:30Z, 06-20 08:59 로컬 -> 06-19 23:59Z
+    // Asia/Seoul(UTC+9): 06-15 10:30 로컬 -> 06-15 01:30Z, 06-20 08:59 로컬 -> 06-19 23:59Z.
+    // End는 선택한 분의 끝(:59초)까지 포함한다(서버의 created_at < endDate 미만 비교로
+    // 인해 정확히 :00초만 보내면 그 분의 데이터가 빠지는 문제를 프론트에서 보정).
     expect(onChange).toHaveBeenCalledWith(
       "2026-06-15T01:30:00.000Z",
-      "2026-06-19T23:59:00.000Z",
+      "2026-06-19T23:59:59.000Z",
       "Asia/Seoul"
     );
   });
@@ -66,7 +94,7 @@ describe("DateRangePicker", () => {
 
     expect(onChange).toHaveBeenCalledWith(
       "2026-06-15T05:00:00.000Z",
-      "2026-06-15T23:00:00.000Z",
+      "2026-06-15T23:00:59.000Z",
       "UTC"
     );
   });
@@ -163,6 +191,52 @@ describe("DateRangePicker", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it("End 시간을 비워도 Apply 버튼이 비활성화되어 잘못된 시간 값으로 진행되지 않는다", () => {
+    const { container, onChange } = setup();
+    fireEvent.click(container.querySelector(".daterange-trigger")!);
+    const [, , , endTimeInput] = container.querySelectorAll(".daterange-field-row input");
+
+    fireEvent.change(endTimeInput, { target: { value: "" } });
+
+    const applyBtn = container.querySelector(".daterange-apply") as HTMLButtonElement;
+    expect(applyBtn.disabled).toBe(true);
+
+    fireEvent.click(applyBtn);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("타임존 드롭다운만 바꾸면 프리셋 클릭 시 방금 고른 타임존이 쓰인다 (커밋된 timezone prop이 아님)", () => {
+    const onChange = vi.fn();
+    const { container, getByText } = render(
+      <DateRangePicker
+        start="2026-06-01T00:00:00Z"
+        end="2026-06-05T23:59:59Z"
+        timezone="Asia/Seoul"
+        presets={[TZ_AWARE_PRESET]}
+        onChange={onChange}
+      />
+    );
+    fireEvent.click(container.querySelector(".daterange-trigger")!);
+    fireEvent.change(container.querySelector(".daterange-tz")!, { target: { value: "UTC" } });
+    fireEvent.click(getByText("TZ인지"));
+
+    expect(onChange).toHaveBeenCalledWith("start-UTC", "end-UTC", "UTC");
+  });
+
+  it("타임존 드롭다운을 바꾸면 표시되는 인스턴트를 유지한 채 벽시계 값만 다시 표시한다", () => {
+    // 그대로 draftTz만 바꾸면 handleApply가 동일한 날짜/시간 문자열을 새 타임존으로
+    // 재해석해 실제 전송되는 인스턴트가 조용히 바뀐다 — Asia/Seoul 09:00(=00:00Z)에서
+    // 아무 것도 안 건드리고 UTC로 바꾼 뒤 그대로 Apply하면 반드시 원래 인스턴트가 그대로
+    // 나와야 한다.
+    const { container, onChange } = setup();
+    fireEvent.click(container.querySelector(".daterange-trigger")!);
+    fireEvent.change(container.querySelector(".daterange-tz")!, { target: { value: "UTC" } });
+    fireEvent.click(container.querySelector(".daterange-apply")!);
+
+    const [calledStart] = onChange.mock.calls[0];
+    expect(calledStart).toBe("2026-06-01T00:00:00.000Z");
+  });
+
   it("날짜/시간 입력란을 직접 수정해 Start가 End보다 뒤에 오면 Apply 시 자동으로 정렬된다", () => {
     const { container, onChange } = setup();
     fireEvent.click(container.querySelector(".daterange-trigger")!);
@@ -178,7 +252,7 @@ describe("DateRangePicker", () => {
 
     expect(onChange).toHaveBeenCalledWith(
       "2026-06-01T03:00:00.000Z",
-      "2026-06-25T03:00:00.000Z",
+      "2026-06-25T03:00:59.000Z",
       "Asia/Seoul"
     );
   });
@@ -201,7 +275,7 @@ describe("DateRangePicker", () => {
 
     expect(onChange).toHaveBeenCalledWith(
       "2026-03-07T08:30:00.000Z",
-      "2026-03-09T07:30:00.000Z",
+      "2026-03-09T07:30:59.000Z",
       "America/New_York"
     );
   });
@@ -227,7 +301,7 @@ describe("DateRangePicker", () => {
 
     expect(onChange).toHaveBeenCalledWith(
       "2026-03-08T10:30:00.000Z",
-      "2026-03-08T11:00:00.000Z",
+      "2026-03-08T11:00:59.000Z",
       "America/New_York"
     );
   });

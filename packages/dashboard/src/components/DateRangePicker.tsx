@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useState } from "react";
 
 export interface Preset {
   label: string;
-  range: () => [string, string];
+  range: (timezone: string) => [string, string];
 }
 
 interface Props {
@@ -64,23 +64,44 @@ function getZonedParts(instant: number, timeZone: string, withSeconds: boolean):
   return p;
 }
 
+function offsetAtInstant(instant: number, timeZone: string): number {
+  const p = getZonedParts(instant, timeZone, true);
+  return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - instant;
+}
+
+function wallClockMatches(
+  instant: number,
+  timeZone: string,
+  y: number,
+  mo: number,
+  d: number,
+  h: number,
+  mi: number
+): boolean {
+  const p = getZonedParts(instant, timeZone, true);
+  return +p.year === y && +p.month === mo && +p.day === d && +p.hour === h && +p.minute === mi;
+}
+
 // 특정 타임존의 벽시계 시각(date+time)을 UTC 인스턴트로 변환.
-// 오프셋 보정을 한 번만 하면 DST 전환일에 오답이 난다 — 예: America/New_York에서
-// 봄철 전환(2am EST -> 3am EDT) 직후의 유효한 시각(예: 06:30)도 guess 시점(전환 전, EST)
-// 오프셋으로 한 번만 보정하면 실제보다 1시간 어긋난 인스턴트가 나온다. 보정된 인스턴트에서
-// 오프셋을 다시 구해 안정될 때까지 반복해야 한다(최대 3회, 실제 IANA 규칙에서는 2회면 수렴).
-function zonedTimeToUtcISO(dateStr: string, timeStr: string, timeZone: string): string {
+// 오프셋 보정을 한 번만 하면 DST 전환일에 오답이 난다 — guess 시점 오프셋(off1)과 그
+// 오프셋으로 보정한 인스턴트에서 다시 구한 오프셋(off2)이 전환 경계에서는 다를 수 있다.
+// 두 후보(cand1, cand2)를 모두 만들고, 실제로 원래 벽시계 값을 재현하는 쪽을 택한다:
+// - 유효한 시각(전환 직후 포함): cand2가 정확히 재현됨 — 그대로 반환.
+// - 존재하지 않는 시각(봄철 갭, 예: 2:30am): 어느 후보도 재현 못 함 — cand1(전환 후
+//   오프셋 기준, 갭만큼 앞으로 민 시각)을 반환한다(Luxon/moment-timezone과 동일한 관례).
+// - 중복되는 시각(가을철, 예: 1:30am이 두 번): cand1==cand2로 수렴해 먼저 오는(이른) 쪽을
+//   반환한다.
+export function zonedTimeToUtcISO(dateStr: string, timeStr: string, timeZone: string): string {
   const [y, mo, d] = dateStr.split("-").map(Number);
   const [h, mi] = timeStr.split(":").map(Number);
   const target = Date.UTC(y, mo - 1, d, h, mi);
-  let instant = target;
-  for (let i = 0; i < 3; i++) {
-    const p = getZonedParts(instant, timeZone, true);
-    const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
-    const next = target - (asUtc - instant);
-    if (next === instant) break;
-    instant = next;
-  }
+
+  const off1 = offsetAtInstant(target, timeZone);
+  const cand1 = target - off1;
+  const off2 = offsetAtInstant(cand1, timeZone);
+  const cand2 = target - off2;
+
+  const instant = wallClockMatches(cand2, timeZone, y, mo, d, h, mi) ? cand2 : cand1;
   return new Date(instant).toISOString();
 }
 
@@ -97,7 +118,7 @@ function shortLabel(dateStr: string, timeStr: string): string {
 
 function formatTriggerLabel(start: string, end: string, timezone: string, presets: Preset[]): string {
   const preset = presets.find((p) => {
-    const [s, e] = p.range();
+    const [s, e] = p.range(timezone);
     return s === start && e === end;
   });
   if (preset) return preset.label;
@@ -168,22 +189,25 @@ function DateRangePickerImpl({ start, end, timezone, onChange, presets }: Props)
   };
 
   const handleApply = () => {
-    const s = zonedTimeToUtcISO(draftStart, draftStartTime, draftTz);
-    const e = zonedTimeToUtcISO(draftEnd, draftEndTime, draftTz);
+    const rawStart = zonedTimeToUtcISO(draftStart, draftStartTime, draftTz);
+    const rawEnd = zonedTimeToUtcISO(draftEnd, draftEndTime, draftTz);
     // 캘린더 클릭은 항상 순서를 맞춰주지만, 날짜/시간 입력란은 독립적으로 수정 가능해
     // Start가 End보다 뒤에 오는 값도 만들 수 있다 — 캘린더 클릭과 동일한 규칙(더 이른
     // 쪽을 Start로)으로 자동 정렬한다.
-    if (s > e) {
-      onChange(e, s, draftTz);
-    } else {
-      onChange(s, e, draftTz);
-    }
+    const [lo, hi] = rawStart <= rawEnd ? [rawStart, rawEnd] : [rawEnd, rawStart];
+    // hi는 최종 범위의 끝 — 서버는 created_at < endDate(미만)로 비교하므로, 사용자가
+    // 고른 "분"을 그대로 보내면(예: 08:59:00) 08:59:00~08:59:59 데이터가 통째로 빠진다.
+    // 기존 프리셋(...T23:59:59Z)과 동일한 관례로 선택한 분의 끝(:59초)까지 포함시킨다.
+    const inclusiveHi = new Date(new Date(hi).getTime() + 59000).toISOString();
+    onChange(lo, inclusiveHi, draftTz);
     setOpen(false);
   };
 
   const applyPreset = (p: Preset) => {
-    const [s, e] = p.range();
-    onChange(s, e, timezone);
+    // 방금 드롭다운에서 고른 draftTz를 써야 한다 — 아직 커밋되지 않은 timezone prop을
+    // 쓰면 타임존만 바꾸고 프리셋을 클릭했을 때 사용자의 새 선택이 무시된다.
+    const [s, e] = p.range(draftTz);
+    onChange(s, e, draftTz);
     setOpen(false);
   };
 
@@ -207,7 +231,7 @@ function DateRangePickerImpl({ start, end, timezone, onChange, presets }: Props)
           <div className="daterange-panel">
             <div className="date-presets">
               {presets.map((p) => {
-                const [s, e] = p.range();
+                const [s, e] = p.range(timezone);
                 const active = start === s && end === e;
                 return (
                   <button key={p.label} className={active ? "active" : ""} onClick={() => applyPreset(p)}>
@@ -259,12 +283,34 @@ function DateRangePickerImpl({ start, end, timezone, onChange, presets }: Props)
             <button
               className="daterange-apply"
               onClick={handleApply}
-              disabled={!draftStart || !draftEnd}
+              disabled={!draftStart || !draftEnd || !draftStartTime || !draftEndTime}
             >
               적용 ↵
             </button>
 
-            <select className="daterange-tz" value={draftTz} onChange={(e) => setDraftTz(e.target.value)}>
+            <select
+              className="daterange-tz"
+              value={draftTz}
+              onChange={(e) => {
+                const newTz = e.target.value;
+                // 그대로 draftTz만 바꾸면 handleApply가 같은 날짜/시간 문자열을 새
+                // 타임존으로 재해석해 실제 전송되는 인스턴트가 조용히 바뀐다 — 현재
+                // draft가 나타내는 인스턴트를 유지한 채 새 타임존의 벽시계로만 다시
+                // 표시한다. 날짜/시간 입력란이 비어 있으면(Apply가 어차피 비활성화된
+                // 상태) 재해석할 인스턴트가 없으므로 타임존만 바꾼다.
+                if (draftStart && draftStartTime && draftEnd && draftEndTime) {
+                  const currentStart = zonedTimeToUtcISO(draftStart, draftStartTime, draftTz);
+                  const currentEnd = zonedTimeToUtcISO(draftEnd, draftEndTime, draftTz);
+                  const sp = instantToZonedParts(currentStart, newTz);
+                  const ep = instantToZonedParts(currentEnd, newTz);
+                  setDraftStart(sp.date);
+                  setDraftStartTime(sp.time);
+                  setDraftEnd(ep.date);
+                  setDraftEndTime(ep.time);
+                }
+                setDraftTz(newTz);
+              }}
+            >
               {TZ_OPTIONS.map((tz) => (
                 <option key={tz} value={tz}>{tz === LOCAL_TZ ? `Local (${tz})` : tz}</option>
               ))}
