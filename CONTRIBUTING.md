@@ -143,7 +143,7 @@ chore(deps): bump recharts to 2.15
 ## Test
 - [ ] `pnpm typecheck` 통과
 - [ ] `pnpm build` 성공
-- [ ] 로컬 테스트 완료 (해당 시)
+- [ ] `pnpm test` 통과 (Vitest, CI에서 자동 실행 — `TESTING.md` 참고)
 ```
 
 ### 머지 규칙
@@ -173,6 +173,7 @@ PR 머지 전 확인 항목:
 
 - [ ] `pnpm typecheck` — 타입 에러 없음
 - [ ] `pnpm build` — 빌드 성공
+- [ ] `pnpm test` — 테스트 통과 (CI에서 자동 실행)
 - [ ] ES module import에 `.js` 확장자 포함
 - [ ] `@flowmvp/shared`를 통한 cross-package import
 - [ ] SDK: try-catch로 호스트 앱 크래시 방지

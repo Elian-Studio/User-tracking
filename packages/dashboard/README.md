@@ -22,7 +22,7 @@ pnpm dev
 
 - **Service Key** — 조회할 서비스 키 입력
 - **사이트 URL** — 히트맵 iframe에 사용할 사이트 URL
-- **기간 선택** — 시작일/종료일 날짜 선택
+- **기간 선택** — Grafana 스타일 캘린더 범위 피커(`DateRangePicker`). 달력 그리드 클릭 또는 프리셋(오늘/7일/30일/이번 달)으로 빠르게 선택하고, Start/End 날짜·시간을 직접 입력하거나 IANA 타임존 드롭다운으로 표시 타임존을 바꿀 수 있음
 - **환경 배지** — 서비스 키에 따라 DEV/STAGING/PROD 배지 자동 표시
 
 ### 개요 카드
@@ -59,6 +59,7 @@ UV(순방문자), PV(페이지뷰), Bounce Rate(이탈률) 3개 지표를 카드
 | `PagesTable` | `/api/metrics/pages` | 경로별 조회수 테이블 + 분석/히트맵 버튼 |
 | `ExitScrollChart` | `/api/metrics/exit-scroll` | 스크롤 구간별 이탈 바 차트 (Recharts `BarChart`) + 통계 |
 | `ScrollHeatmap` | `/api/metrics/exit-scroll` | iframe + 색상 오버레이 히트맵 모달 |
+| `DateRangePicker` | — (다른 컴포넌트에 `startDate`/`endDate` 전달) | 캘린더 그리드 + 프리셋 + Start/End 날짜·시간 입력 + IANA 타임존 선택기 |
 
 ## 개발
 
@@ -87,7 +88,8 @@ packages/dashboard/
         ├── TrendChart.tsx
         ├── PagesTable.tsx
         ├── ExitScrollChart.tsx
-        └── ScrollHeatmap.tsx
+        ├── ScrollHeatmap.tsx
+        └── DateRangePicker.tsx
 ```
 
 ### 빌드
