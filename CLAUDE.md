@@ -50,6 +50,36 @@ Copy `packages/server/.env.example` to `packages/server/.env`.
 
 PostgreSQL with 3 tables: `services`, `sessions` (UUID PK), `events` (BIGSERIAL PK with CHECK constraint on type). Migration SQL at `packages/server/src/db/migrations/001_init.sql`. Multi-tenant by `service_key` — each React project registers with a unique key.
 
+## Testing
+
+Vitest across all packages (`pnpm test`, or `pnpm --filter <pkg> test`). `dashboard` also uses `@testing-library/react`. See `TESTING.md` for framework details and conventions.
+
+- 100% test coverage is the goal — tests make vibe coding safe.
+- When writing a new function, write a corresponding test.
+- When fixing a bug, write a regression test.
+- When adding error handling, write a test that triggers the error.
+- When adding a conditional (if/else, switch), write tests for BOTH paths.
+- Never commit code that makes existing tests fail.
+
 ## Communication
 
 - **모든 응답은 한국어로 작성합니다.** 코드, 커밋 메시지, 변수명 등 코드 자체는 영어를 유지하되, 사용자와의 대화 및 설명은 한국어로 합니다.
+
+## Skill routing
+
+When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
+
+Key routing rules:
+- Product ideas/brainstorming → invoke /office-hours
+- Strategy/scope → invoke /plan-ceo-review
+- Architecture → invoke /plan-eng-review
+- Design system/plan review → invoke /design-consultation or /plan-design-review
+- Full review pipeline → invoke /autoplan
+- Bugs/errors → invoke /investigate
+- QA/testing site behavior → invoke /qa or /qa-only
+- Code review/diff check → invoke /review
+- Visual polish → invoke /design-review
+- Ship/deploy/PR → invoke /ship or /land-and-deploy
+- Save progress → invoke /context-save
+- Resume context → invoke /context-restore
+- Author a backlog-ready spec/issue → invoke /spec

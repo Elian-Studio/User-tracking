@@ -14,9 +14,11 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist *.tsbuildinfo"
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "typescript": "^5.7"
+    "typescript": "^5.7",
+    "vitest": "^4.1.9"
   }
 }

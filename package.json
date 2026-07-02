@@ -11,10 +11,16 @@
     "build:server": "pnpm --filter @flowmvp/server build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
     "clean": "turbo run clean"
   },
   "devDependencies": {
     "turbo": "^2",
     "typescript": "^5.7"
+  },
+  "pnpm": {
+    "overrides": {
+      "react": "18.3.1"
+    }
   }
 }
