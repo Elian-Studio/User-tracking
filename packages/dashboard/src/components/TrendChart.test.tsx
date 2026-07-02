@@ -103,92 +103,57 @@ describe("computeSpansMultipleDays", () => {
 });
 
 describe("TrendChart", () => {
-  it("범위가 3일 이하면 '시간별' 버튼이 노출된다", () => {
-    const { getByText } = setup("2026-06-30T00:00:00Z", "2026-07-01T23:59:59Z");
-    expect(getByText("시간별")).toBeTruthy();
-  });
-
-  it("범위가 3일을 넘으면 '시간별' 버튼이 노출되지 않는다", () => {
-    const { queryByText } = setup("2026-06-01T00:00:00Z", "2026-07-01T23:59:59Z");
-    expect(queryByText("시간별")).toBeNull();
-  });
-
-  it("'시간별' 선택 시 fetchTrend가 hour interval과 timezone으로 호출된다", async () => {
-    const { getByText } = setup("2026-06-30T00:00:00Z", "2026-07-01T23:59:59Z");
-    fireEvent.click(getByText("시간별"));
+  it("1일 범위에서는 클릭 없이 '일별' 탭이 자동으로 hour interval을 요청한다", async () => {
+    const { getByText } = setup("2026-07-01T00:00:00Z", "2026-07-01T23:59:59Z");
 
     await waitFor(() => {
       expect(mockedFetchTrend).toHaveBeenCalledWith(
         "svc-1",
-        "2026-06-30T00:00:00Z",
+        "2026-07-01T00:00:00Z",
         "2026-07-01T23:59:59Z",
+        "hour",
+        "Asia/Seoul"
+      );
+    });
+    expect(getByText("일별").className).toBe("active");
+    // "시간별" 버튼 자체가 더 이상 존재하지 않는다
+    expect(() => getByText("시간별")).toThrow();
+  });
+
+  it("범위가 정확히 3일(선택 타임존 기준 달력일)이면(경계값 포함) '일별' 탭이 hour interval을 요청한다", async () => {
+    // localDayIndex 차이가 정확히 3 — <=이므로 경계값 자체는 포함되어야 한다.
+    setup("2026-06-28T00:00:00Z", "2026-07-01T00:00:00Z");
+
+    await waitFor(() => {
+      expect(mockedFetchTrend).toHaveBeenCalledWith(
+        "svc-1",
+        "2026-06-28T00:00:00Z",
+        "2026-07-01T00:00:00Z",
         "hour",
         "Asia/Seoul"
       );
     });
   });
 
-  it("'시간별' 선택 후 범위가 3일 넘게 넓어지면 버튼이 사라지고 day interval로 재요청한다", async () => {
-    const { getByText, queryByText, rerender } = render(
-      <TrendChart
-        serviceKey="svc-1"
-        startDate="2026-06-30T00:00:00Z"
-        endDate="2026-07-01T23:59:59Z"
-        timezone="Asia/Seoul"
-      />
-    );
+  it("범위가 4번째 달력일로 넘어가면 '일별' 탭이 day interval을 요청한다", async () => {
+    setup("2026-06-28T00:00:00Z", "2026-07-02T00:00:00Z");
 
-    fireEvent.click(getByText("시간별"));
     await waitFor(() => {
-      expect(mockedFetchTrend).toHaveBeenLastCalledWith(
+      expect(mockedFetchTrend).toHaveBeenCalledWith(
         "svc-1",
-        "2026-06-30T00:00:00Z",
-        "2026-07-01T23:59:59Z",
-        "hour",
-        "Asia/Seoul"
-      );
-    });
-
-    const widenedStart = new Date(
-      new Date("2026-06-30T00:00:00Z").getTime() - 10 * ONE_DAY_MS
-    ).toISOString();
-    rerender(
-      <TrendChart
-        serviceKey="svc-1"
-        startDate={widenedStart}
-        endDate="2026-07-01T23:59:59Z"
-        timezone="Asia/Seoul"
-      />
-    );
-
-    expect(queryByText("시간별")).toBeNull();
-    await waitFor(() => {
-      expect(mockedFetchTrend).toHaveBeenLastCalledWith(
-        "svc-1",
-        widenedStart,
-        "2026-07-01T23:59:59Z",
+        "2026-06-28T00:00:00Z",
+        "2026-07-02T00:00:00Z",
         "day",
         "Asia/Seoul"
       );
     });
   });
 
-  it("범위가 정확히 3일(선택 타임존 기준 달력일)이면(경계값 포함) '시간별' 버튼이 노출된다", () => {
-    // localDayIndex 차이가 정확히 3 — <=이므로 경계값 자체는 포함되어야 한다.
-    const { getByText } = setup("2026-06-28T00:00:00Z", "2026-07-01T00:00:00Z");
-    expect(getByText("시간별")).toBeTruthy();
-  });
-
-  it("범위가 4번째 달력일로 넘어가면 '시간별' 버튼이 노출되지 않는다", () => {
-    const { queryByText } = setup("2026-06-28T00:00:00Z", "2026-07-02T00:00:00Z");
-    expect(queryByText("시간별")).toBeNull();
-  });
-
-  it("DST 종료 주말처럼 실제 경과시간이 73시간이어도 로컬 달력 기준 3일이면 '시간별' 버튼이 노출된다", () => {
+  it("DST 종료 주말처럼 실제 경과시간이 73시간이어도 로컬 달력 기준 3일이면 '일별' 탭이 hour interval을 요청한다", async () => {
     // America/New_York은 2026-11-01 새벽 2시에 서머타임이 끝나 그 날이 25시간이 된다.
     // 10/31 00:00 ~ 11/2 23:59(로컬)은 실제 UTC 경과 기준 73시간에 가깝지만, 사용자에게는
-    // 여전히 "3일"이므로 시간별 버튼이 사라지면 안 된다 — ms 기준 비교였다면 실패했을 케이스.
-    const { getByText } = render(
+    // 여전히 "3일"이므로 시간별 조회가 유지돼야 한다 — ms 기준 비교였다면 실패했을 케이스.
+    render(
       <TrendChart
         serviceKey="svc-1"
         startDate="2026-10-31T04:00:00Z"
@@ -196,14 +161,20 @@ describe("TrendChart", () => {
         timezone="America/New_York"
       />
     );
-    expect(getByText("시간별")).toBeTruthy();
+
+    await waitFor(() => {
+      expect(mockedFetchTrend).toHaveBeenCalledWith(
+        "svc-1",
+        "2026-10-31T04:00:00Z",
+        "2026-11-03T04:59:00Z",
+        "hour",
+        "America/New_York"
+      );
+    });
   });
 
-  it("'시간별' 선택 후 범위가 넓어졌다가 다시 3일 이내로 좁아지면 '시간별'이 아닌 '일별'이 활성 상태다", async () => {
-    // effectiveInterval의 폴백만으론 이 시나리오를 구분 못 한다 — 범위가 다시 짧아지면
-    // effectiveInterval은 내부 interval 상태를 그대로 반영하므로, useEffect가 실제로
-    // interval을 "day"로 리셋해두지 않으면 '시간별'이 사용자 재선택 없이 다시 활성화된다.
-    const { getByText, rerender } = render(
+  it("'일별' 탭에서 범위가 3일 넘게 넓어지면 클릭 없이 day interval로 자동 재요청한다", async () => {
+    const { rerender } = render(
       <TrendChart
         serviceKey="svc-1"
         startDate="2026-06-30T00:00:00Z"
@@ -212,9 +183,14 @@ describe("TrendChart", () => {
       />
     );
 
-    fireEvent.click(getByText("시간별"));
     await waitFor(() => {
-      expect(getByText("시간별").className).toBe("active");
+      expect(mockedFetchTrend).toHaveBeenLastCalledWith(
+        "svc-1",
+        "2026-06-30T00:00:00Z",
+        "2026-07-01T23:59:59Z",
+        "hour",
+        "Asia/Seoul"
+      );
     });
 
     const widenedStart = new Date(
@@ -228,6 +204,7 @@ describe("TrendChart", () => {
         timezone="Asia/Seoul"
       />
     );
+
     await waitFor(() => {
       expect(mockedFetchTrend).toHaveBeenLastCalledWith(
         "svc-1",
@@ -237,19 +214,31 @@ describe("TrendChart", () => {
         "Asia/Seoul"
       );
     });
+  });
 
-    rerender(
-      <TrendChart
-        serviceKey="svc-1"
-        startDate="2026-06-30T00:00:00Z"
-        endDate="2026-07-01T23:59:59Z"
-        timezone="Asia/Seoul"
-      />
-    );
+  it("'주별'/'월별' 탭을 고르면 범위가 짧아도 hour로 전환되지 않고 그대로 조회된다", async () => {
+    const { getByText } = setup("2026-07-01T00:00:00Z", "2026-07-01T23:59:59Z");
 
+    fireEvent.click(getByText("주별"));
     await waitFor(() => {
-      expect(getByText("일별").className).toBe("active");
+      expect(mockedFetchTrend).toHaveBeenLastCalledWith(
+        "svc-1",
+        "2026-07-01T00:00:00Z",
+        "2026-07-01T23:59:59Z",
+        "week",
+        "Asia/Seoul"
+      );
     });
-    expect(getByText("시간별").className).toBe("");
+
+    fireEvent.click(getByText("월별"));
+    await waitFor(() => {
+      expect(mockedFetchTrend).toHaveBeenLastCalledWith(
+        "svc-1",
+        "2026-07-01T00:00:00Z",
+        "2026-07-01T23:59:59Z",
+        "month",
+        "Asia/Seoul"
+      );
+    });
   });
 });

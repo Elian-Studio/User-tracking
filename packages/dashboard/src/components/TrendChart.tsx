@@ -19,14 +19,16 @@ interface Props {
   timezone: string;
 }
 
-type Interval = "day" | "week" | "month" | "hour";
+type UserInterval = "day" | "week" | "month"; // 토글 버튼이 직접 제어하는 값
+type Interval = "day" | "week" | "month" | "hour"; // 서버에 실제로 보내는 값(파생)
 
-const INTERVAL_LABELS: Record<Interval, string> = {
+const INTERVAL_LABELS: Record<UserInterval, string> = {
   day: "일별",
   week: "주별",
   month: "월별",
-  hour: "시간별",
 };
+
+const USER_INTERVALS: UserInterval[] = ["day", "week", "month"];
 
 const MAX_SHORT_RANGE_DAYS = 3;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -69,20 +71,17 @@ export function computeSpansMultipleDays(
 }
 
 export function TrendChart({ serviceKey, startDate, endDate, timezone }: Props) {
-  const [interval, setInterval] = useState<Interval>("day");
+  const [interval, setInterval] = useState<UserInterval>("day");
   const [data, setData] = useState<{ date: string; uv: number; pv: number }[]>(
     [],
   );
 
   const isShortRange =
     localDayIndex(endDate, timezone) - localDayIndex(startDate, timezone) <= MAX_SHORT_RANGE_DAYS;
-  const effectiveInterval: Interval = interval === "hour" && !isShortRange ? "day" : interval;
-
-  // 토글 버튼 표시 상태 정리용 — 쿼리 안전성은 effectiveInterval 파생값이 이미 보장하므로
-  // 여기선 화면에 남은 "시간별" 활성 표시만 되돌린다.
-  useEffect(() => {
-    if (interval === "hour" && !isShortRange) setInterval("day");
-  }, [isShortRange, interval]);
+  // "일별" 탭에서 범위가 짧으면 자동으로 시간별 데이터를 요청한다 — 일별 데이터가 1개
+  // 행뿐이면 Recharts 라인 차트가 점 하나만 찍고 끝나기 때문. interval 자체가 "hour" 값을
+  // 가질 수 없으므로(버튼이 3개뿐) 범위가 넓어져도 되돌릴 스테일 상태가 애초에 없다.
+  const effectiveInterval: Interval = interval === "day" && isShortRange ? "hour" : interval;
 
   useEffect(() => {
     if (!serviceKey) return;
@@ -93,18 +92,14 @@ export function TrendChart({ serviceKey, startDate, endDate, timezone }: Props) 
 
   const spansMultipleDays = computeSpansMultipleDays(effectiveInterval, data);
 
-  const intervals: Interval[] = isShortRange
-    ? ["day", "week", "month", "hour"]
-    : ["day", "week", "month"];
-
   return (
     <div className="section">
       <h2>방문자 추이</h2>
       <div className="interval-toggle">
-        {intervals.map((v) => (
+        {USER_INTERVALS.map((v) => (
           <button
             key={v}
-            className={effectiveInterval === v ? "active" : ""}
+            className={interval === v ? "active" : ""}
             onClick={() => setInterval(v)}
           >
             {INTERVAL_LABELS[v]}
