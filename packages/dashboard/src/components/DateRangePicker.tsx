@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 
 export interface Preset {
   label: string;
@@ -125,7 +125,7 @@ function ChevronIcon() {
   );
 }
 
-export function DateRangePicker({ start, end, timezone, onChange, presets }: Props) {
+function DateRangePickerImpl({ start, end, timezone, onChange, presets }: Props) {
   const [open, setOpen] = useState(false);
   const [draftStart, setDraftStart] = useState("");
   const [draftStartTime, setDraftStartTime] = useState("00:00");
@@ -170,7 +170,14 @@ export function DateRangePicker({ start, end, timezone, onChange, presets }: Pro
   const handleApply = () => {
     const s = zonedTimeToUtcISO(draftStart, draftStartTime, draftTz);
     const e = zonedTimeToUtcISO(draftEnd, draftEndTime, draftTz);
-    onChange(s, e, draftTz);
+    // 캘린더 클릭은 항상 순서를 맞춰주지만, 날짜/시간 입력란은 독립적으로 수정 가능해
+    // Start가 End보다 뒤에 오는 값도 만들 수 있다 — 캘린더 클릭과 동일한 규칙(더 이른
+    // 쪽을 Start로)으로 자동 정렬한다.
+    if (s > e) {
+      onChange(e, s, draftTz);
+    } else {
+      onChange(s, e, draftTz);
+    }
     setOpen(false);
   };
 
@@ -180,13 +187,17 @@ export function DateRangePicker({ start, end, timezone, onChange, presets }: Pro
     setOpen(false);
   };
 
-  const days = buildCalendarWeeks(viewDate);
+  const days = useMemo(() => buildCalendarWeeks(viewDate), [viewDate]);
+  const triggerLabel = useMemo(
+    () => formatTriggerLabel(start, end, timezone, presets),
+    [start, end, timezone, presets]
+  );
 
   return (
     <div className="daterange">
       <button className="daterange-trigger" onClick={() => setOpen((o) => !o)}>
         <CalendarIcon />
-        <span>{formatTriggerLabel(start, end, timezone, presets)}</span>
+        <span>{triggerLabel}</span>
         <ChevronIcon />
       </button>
 
@@ -264,3 +275,5 @@ export function DateRangePicker({ start, end, timezone, onChange, presets }: Pro
     </div>
   );
 }
+
+export const DateRangePicker = memo(DateRangePickerImpl);

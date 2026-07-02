@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DateRangePicker, type Preset } from "./components/DateRangePicker";
 import { OverviewCards } from "./components/OverviewCards";
 import { OnboardingCard } from "./components/OnboardingCard";
@@ -67,6 +67,11 @@ export function App() {
   const [endInstant, setEndInstant] = useState(todayISO() + "T23:59:59Z");
   const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [section, setSection] = useState<Section>("overview");
+  const handleDateRangeChange = useCallback((s: string, e: string, tz: string) => {
+    setStartInstant(s);
+    setEndInstant(e);
+    setTimezone(tz);
+  }, []);
   const [hasData, setHasData] = useState(true);
   const [selectedPath, setSelectedPath] = useState("");
   const [heatmapPath, setHeatmapPath] = useState("");
@@ -137,11 +142,7 @@ export function App() {
                 end={endInstant}
                 timezone={timezone}
                 presets={DATE_PRESETS}
-                onChange={(s, e, tz) => {
-                  setStartInstant(s);
-                  setEndInstant(e);
-                  setTimezone(tz);
-                }}
+                onChange={handleDateRangeChange}
               />
             </div>
           )}

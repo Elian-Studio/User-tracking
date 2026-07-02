@@ -1168,6 +1168,16 @@ body {
     overflow-y: auto;
   }
 
+  /* 터치 타겟 44px 권장치에 맞춰 날짜 셀/월 이동 버튼을 키움 — 데스크톱은 마우스라 그대로 둠 */
+  .daterange-day {
+    min-height: 40px;
+  }
+
+  .daterange-cal-header button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
   /* 넓은 표는 가로 스크롤 */
   .pages-table {
     display: block;

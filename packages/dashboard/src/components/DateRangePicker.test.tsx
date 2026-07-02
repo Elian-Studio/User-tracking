@@ -163,6 +163,26 @@ describe("DateRangePicker", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it("날짜/시간 입력란을 직접 수정해 Start가 End보다 뒤에 오면 Apply 시 자동으로 정렬된다", () => {
+    const { container, onChange } = setup();
+    fireEvent.click(container.querySelector(".daterange-trigger")!);
+    const [startDateInput, startTimeInput, endDateInput, endTimeInput] =
+      container.querySelectorAll(".daterange-field-row input");
+
+    // 캘린더 클릭과 달리 입력란은 독립적이라 Start를 End보다 뒤로 만들 수 있다
+    fireEvent.change(startDateInput, { target: { value: "2026-06-25" } });
+    fireEvent.change(startTimeInput, { target: { value: "12:00" } });
+    fireEvent.change(endDateInput, { target: { value: "2026-06-01" } });
+    fireEvent.change(endTimeInput, { target: { value: "12:00" } });
+    fireEvent.click(container.querySelector(".daterange-apply")!);
+
+    expect(onChange).toHaveBeenCalledWith(
+      "2026-06-01T03:00:00.000Z",
+      "2026-06-25T03:00:00.000Z",
+      "Asia/Seoul"
+    );
+  });
+
   it("서머타임 전환일 전후를 걸치는 타임존도 각 날짜의 오프셋을 정확히 반영한다", () => {
     const { container, onChange } = setup();
     fireEvent.click(container.querySelector(".daterange-trigger")!);
